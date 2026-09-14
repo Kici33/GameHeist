@@ -65,7 +65,7 @@ public final class HeistRun {
             if (carried.containsKey(player)) throw new IllegalStateException("Deliver your current bag first");
             if (!unavailable.add(block)) return "That bag has already been taken.";
             carried.put(player, block);
-            return "Carrying one bag. Bring it to the green extraction marker.";
+            return "Carrying one bag. Bring it to the green extraction marker, or Shift+F to return it to its original marker.";
         }
         if (block.equals(definition.extraction())) {
             if (carried.remove(player) != null) {
@@ -126,9 +126,14 @@ public final class HeistRun {
     }
 
     /** Return carried loot to its authored marker exactly once; it can be collected again. */
-    public void incapacitate(UUID player) {
+    public boolean returnBag(UUID player) {
         BlockPosition bag = carried.remove(player);
-        if (bag != null) unavailable.remove(bag);
+        if (bag == null) return false;
+        unavailable.remove(bag);
+        return true;
+    }
+    public void incapacitate(UUID player) {
+        returnBag(player);
         votes.remove(player);
         if (player.equals(repairingPlayer)) { repairingPlayer = null; repairDeadline = null; }
     }

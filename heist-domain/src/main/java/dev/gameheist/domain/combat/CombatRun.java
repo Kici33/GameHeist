@@ -9,6 +9,7 @@ public final class CombatRun {
     public static final int MAGAZINE = 12, GUARD_HEALTH = 60, SHOT_DAMAGE = 20;
     public static final double SHOT_RANGE = 24, GUARD_RANGE = 16, REVIVE_RANGE = 3;
     public enum Attack { NONE, AIMING, HIT }
+    public enum ReviveUpdate { NONE, IN_PROGRESS, REVIVED, HELPER_DOWN, TARGET_RECOVERED, RELEASED, OBSTRUCTED, OUT_OF_RANGE }
     private final Clock clock;
     private final Map<UUID, Fighter> players = new LinkedHashMap<>();
     private final Map<String, Guard> guards = new LinkedHashMap<>();
@@ -103,6 +104,7 @@ public final class CombatRun {
         if (rescuer.equals(target) || helper.health == 0 || downed.health != 0
                 || !clear || !inRange(distance, REVIVE_RANGE)) return false;
         if (target.equals(helper.reviving)) return false;
+        tickReload(helper);
         helper.reviving = target;
         helper.reviveAt = clock.instant().plusSeconds(helper.role == Role.SUPPORT ? 3 : 4);
         helper.reloadAt = null;
@@ -110,18 +112,26 @@ public final class CombatRun {
     }
     /** Called every frame, including invalid/absent helpers, to prevent progress through cover or disconnects. */
     public boolean updateRevive(UUID rescuer, double distance, boolean clear, boolean holding) {
+        return updateReviveDetailed(rescuer, distance, clear, holding) == ReviveUpdate.REVIVED;
+    }
+    public ReviveUpdate updateReviveDetailed(UUID rescuer, double distance, boolean clear, boolean holding) {
         Fighter helper = require(rescuer);
-        if (helper.reviving == null) return false;
+        if (helper.reviving == null) return ReviveUpdate.NONE;
         Fighter target = require(helper.reviving);
-        if (helper.health == 0 || target.health != 0 || !holding || !clear || !inRange(distance, REVIVE_RANGE)) {
+        ReviveUpdate interruption = helper.health == 0 ? ReviveUpdate.HELPER_DOWN
+                : target.health != 0 ? ReviveUpdate.TARGET_RECOVERED
+                : !holding ? ReviveUpdate.RELEASED
+                : !inRange(distance, REVIVE_RANGE) ? ReviveUpdate.OUT_OF_RANGE
+                : !clear ? ReviveUpdate.OBSTRUCTED : null;
+        if (interruption != null) {
             cancelRevive(helper);
-            return false;
+            return interruption;
         }
-        if (clock.instant().isBefore(helper.reviveAt)) return false;
+        if (clock.instant().isBefore(helper.reviveAt)) return ReviveUpdate.IN_PROGRESS;
         target.health = 50;
         helper.revives++;
         cancelRevive(helper);
-        return true;
+        return ReviveUpdate.REVIVED;
     }
     /** One wave per match, fifteen seconds after the first loud frame. */
     public boolean claimWave(boolean loud) {

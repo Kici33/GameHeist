@@ -152,6 +152,9 @@ public final class Match {
     public boolean updateRevive(UUID helper, double distance, boolean clear, boolean holding) {
         return requireCombat().updateRevive(helper, distance, clear, holding);
     }
+    public CombatRun.ReviveUpdate updateReviveDetailed(UUID helper, double distance, boolean clear, boolean holding) {
+        return requireCombat().updateReviveDetailed(helper, distance, clear, holding);
+    }
     public boolean claimWave() { return requireCombat().claimWave(alarm == AlarmState.LOUD); }
     private CombatRun requireCombat() {
         requireGameplay();
@@ -163,6 +166,11 @@ public final class Match {
         if (!activeParticipant(playerId)) throw new IllegalStateException("Only active crew members can interact");
         return heist.orElseThrow(() -> new IllegalStateException("Arena has no physical heist layout"))
                 .interact(playerId, block, position);
+    }
+    public boolean returnBag(UUID playerId) {
+        requireGameplay();
+        if (!activeParticipant(playerId)) throw new IllegalStateException("Only active crew members can return loot");
+        return heist.orElseThrow(() -> new IllegalStateException("Arena has no physical heist layout")).returnBag(playerId);
     }
     public void updateHeist(Map<UUID, Position> presentPlayers) {
         tick();

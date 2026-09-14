@@ -62,6 +62,7 @@ class CombatMatchTest {
         assertTrue(match.heistSnapshot().orElseThrow().carriedBags().isEmpty());
         assertFalse(match.heistSnapshot().orElseThrow().unavailableBags().contains(bag));
         assertThrows(IllegalStateException.class, () -> interact(match, first, bag));
+        assertThrows(IllegalStateException.class, () -> match.returnBag(first));
         interact(match, second, bag);
         interact(match, second, exit);
         assertEquals(1, match.heistSnapshot().orElseThrow().securedBags());

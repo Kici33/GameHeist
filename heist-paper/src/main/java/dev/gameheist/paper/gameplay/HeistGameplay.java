@@ -117,6 +117,18 @@ public final class HeistGameplay {
             if (ticks % 5 == 0) render(current, heist, view);
         }
     }
+    public void returnBag(Player player) {
+        var id = instances.instanceOf(player.getUniqueId());
+        if (!players.contains(player.getUniqueId()) || id.isEmpty()) return;
+        var instance = instances.snapshot(id.orElseThrow());
+        if (!instance.match().phase().gameplay() || !instances.activePlayer(player.getUniqueId())
+                || instances.heistSnapshot(id.orElseThrow()).isEmpty() || player.isDead()
+                || player.getGameMode() != GameMode.ADVENTURE || !player.getWorld().getName().equals(instance.worldName())) return;
+        if (instances.returnBag(player.getUniqueId())) {
+            updateBags(instance, instances.heistSnapshot(id.orElseThrow()).orElseThrow(), view(instance));
+            player.sendMessage(Component.text("Bag returned to its original gold marker. A crewmate can collect it.", NamedTextColor.AQUA));
+        } else player.sendActionBar(Component.text("You are not carrying a bag.", NamedTextColor.YELLOW));
+    }
 
     private Presentation view(InstanceSnapshot instance) {
         UUID id = instance.match().id();
@@ -198,12 +210,12 @@ public final class HeistGameplay {
             String status = state.carriedBags().containsKey(playerId) ? "Carrying a bag — right click GREEN to secure it" : instruction;
             if (combat.isPresent()) {
                 var fighter = combat.orElseThrow().players().get(playerId);
-                if (fighter.downed()) status = "DOWNED — wait for a teammate to revive you";
+                if (fighter.downed()) status = ReviveStatus.forRecipient(playerId, combat.orElseThrow(), view.crewNames);
                 else if (fighter.reviving().isPresent()) status = "Reviving: " + seconds(fighter.reviveMillis()) + "s — keep sneaking nearby";
                 else status = "HP " + fighter.health() + "/100 · " + (fighter.reloadMillis() > 0
                         ? "Reload " + seconds(fighter.reloadMillis()) + "s" : "Ammo " + fighter.ammunition() + "/12 · F reload")
                         + (fighter.medkitAvailable() ? " · Medkit: slot 2" : " · Medkit used")
-                        + (state.carriedBags().containsKey(playerId) ? " · BAG → GREEN" : "");
+                        + (state.carriedBags().containsKey(playerId) ? " · BAG → GREEN · Shift+F return" : "");
             }
             String crewStatus = CrewStatus.format(playerId, crew);
             if (!crewStatus.isEmpty()) {

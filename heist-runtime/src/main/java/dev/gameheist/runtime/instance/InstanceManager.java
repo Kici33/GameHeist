@@ -149,6 +149,7 @@ public final class InstanceManager {
     }
     public boolean reload(UUID player) { checkThread(); return playerMatch(player).reload(player); }
     public boolean useMedkit(UUID player) { checkThread(); return playerMatch(player).useMedkit(player); }
+    public boolean returnBag(UUID player) { checkThread(); return playerMatch(player).returnBag(player); }
     public boolean useMedkit(UUID helper, UUID target, double distance, boolean clear) {
         checkThread();
         return playerMatch(helper).useMedkit(helper, target, distance, clear);
@@ -161,6 +162,9 @@ public final class InstanceManager {
     }
     public boolean updateRevive(UUID helper, double distance, boolean clear, boolean holding) {
         checkThread(); return playerMatch(helper).updateRevive(helper, distance, clear, holding);
+    }
+    public dev.gameheist.domain.combat.CombatRun.ReviveUpdate updateReviveDetailed(UUID helper, double distance, boolean clear, boolean holding) {
+        checkThread(); return playerMatch(helper).updateReviveDetailed(helper, distance, clear, holding);
     }
     public boolean claimWave(UUID id) { checkThread(); return require(id).match.claimWave(); }
     private Match playerMatch(UUID player) {

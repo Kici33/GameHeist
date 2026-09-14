@@ -59,6 +59,8 @@ public final class CombatController implements Listener {
                     if (attack == CombatRun.Attack.AIMING) {
                         target.sendMessage(Component.text(diagnostic.id() + " is aiming at you — take cover!", NamedTextColor.GOLD));
                     } else if (attack == CombatRun.Attack.HIT) {
+                        if (state.players().get(target.getUniqueId()).reviving().isPresent())
+                            target.sendMessage(Component.text("Revive interrupted: you took damage.", NamedTextColor.YELLOW));
                         boolean downed = !instances.activePlayer(target.getUniqueId());
                         target.sendMessage(Component.text(downed ? "DOWNED — a teammate must revive you. Carried loot returned to its marker."
                                 : "Hit by " + diagnostic.id() + "!", NamedTextColor.RED));
@@ -72,9 +74,20 @@ public final class CombatController implements Listener {
                     Player helper = present(entry.getKey(), instance);
                     Player target = present(entry.getValue().reviving().orElseThrow(), instance);
                     boolean valid = helper != null && target != null;
-                    if (instances.updateRevive(entry.getKey(), valid ? helper.getLocation().distance(target.getLocation()) : Double.POSITIVE_INFINITY,
-                            valid && helper.hasLineOfSight(target), valid && helper.isSneaking())) {
+                    var revive = instances.updateReviveDetailed(entry.getKey(), valid ? helper.getLocation().distance(target.getLocation()) : Double.POSITIVE_INFINITY,
+                            valid && helper.hasLineOfSight(target), valid && helper.isSneaking());
+                    if (revive == CombatRun.ReviveUpdate.REVIVED) {
                         broadcast(instance, helper.getName() + " revived " + target.getName() + ".");
+                    } else if (helper != null && revive != CombatRun.ReviveUpdate.NONE && revive != CombatRun.ReviveUpdate.IN_PROGRESS) {
+                        String reason = target == null ? "teammate is unavailable" : switch (revive) {
+                            case HELPER_DOWN -> "you are downed";
+                            case TARGET_RECOVERED -> "teammate is already back up";
+                            case RELEASED -> "keep sneaking until the revive finishes";
+                            case OBSTRUCTED -> "line of sight is blocked";
+                            case OUT_OF_RANGE -> "stay within three blocks";
+                            default -> throw new IllegalStateException("Unexpected revive result " + revive);
+                        };
+                        helper.sendMessage(Component.text("Revive stopped: " + reason + ".", NamedTextColor.YELLOW));
                     }
                 }
             } catch (Exception failure) {
@@ -111,6 +124,7 @@ public final class CombatController implements Listener {
     @EventHandler public void onReload(PlayerSwapHandItemsEvent event) {
         if (!players.contains(event.getPlayer().getUniqueId())) return;
         event.setCancelled(true);
+        if (event.getPlayer().isSneaking()) return; // Shift+F is reserved for returning loot.
         var instance = combatInstance(event.getPlayer());
         if (instance != null && instances.reload(event.getPlayer().getUniqueId())) {
             event.getPlayer().sendMessage(Component.text("Reloading — 2 seconds", NamedTextColor.AQUA));

@@ -43,6 +43,11 @@ public final class PracticeListener implements Listener {
     @EventHandler(ignoreCancelled = true) public void onDrop(PlayerDropItemEvent event) {
         if (players.contains(event.getPlayer().getUniqueId())) event.setCancelled(true);
     }
+    @EventHandler public void onReturnBag(PlayerSwapHandItemsEvent event) {
+        if (!players.contains(event.getPlayer().getUniqueId()) || !event.getPlayer().isSneaking()) return;
+        event.setCancelled(true);
+        gameplay.returnBag(event.getPlayer());
+    }
     @EventHandler public void onInventoryClick(InventoryClickEvent event) {
         if (players.contains(event.getWhoClicked().getUniqueId())) event.setCancelled(true);
     }

@@ -10,6 +10,34 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class HeistRunTest {
+    @Test void returningLootAfterAbortCannotChangeFinalResultOrBagOwnership() {
+        var match = match(0, 2);
+        openVault(match);
+        interact(match, first, bags.get(0));
+        match.abort("test");
+        var before = state(match);
+        var result = match.result().orElseThrow();
+        assertThrows(IllegalStateException.class, () -> match.returnBag(first));
+        assertEquals(before, state(match));
+        assertSame(result, match.result().orElseThrow());
+    }
+    @Test void voluntarilyReturnedBagCanBeCollectedOnceByAnotherCrewMember() {
+        var match = match(0, 2);
+        openVault(match);
+        interact(match, first, bags.get(0));
+        assertTrue(match.returnBag(first));
+        assertFalse(match.returnBag(first));
+        assertFalse(state(match).unavailableBags().contains(bags.get(0)));
+        assertEquals(0, state(match).securedBags());
+        interact(match, second, bags.get(0));
+        interact(match, first, bags.get(0));
+        assertFalse(state(match).carriedBags().containsKey(first));
+        assertEquals(bags.get(0), state(match).carriedBags().get(second));
+        interact(match, second, extraction);
+        assertEquals(1, state(match).securedBags());
+        assertFalse(match.returnBag(second));
+        assertThrows(IllegalStateException.class, () -> match.returnBag(UUID.randomUUID()));
+    }
     private final Fixtures.MutableClock clock = new Fixtures.MutableClock();
     private final UUID first = UUID.randomUUID(), second = UUID.randomUUID();
     private final BlockPosition security = new BlockPosition(-12, 65, -5);

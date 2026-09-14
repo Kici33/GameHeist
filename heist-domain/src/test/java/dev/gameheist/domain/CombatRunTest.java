@@ -8,6 +8,39 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CombatRunTest {
+    @Test void startingRevivePreservesElapsedReloadButCancelsUnfinishedReload() {
+        for (long elapsed : List.of(1999L, 2000L)) {
+            var combat = combat();
+            down(combat, first);
+            combat.fire(second, Optional.empty(), 1, true);
+            combat.reload(second);
+            advance(elapsed);
+            assertTrue(combat.beginRevive(second, first, 2, true));
+            advance(3000);
+            assertEquals(elapsed == 2000 ? 12 : 11, player(combat, second).ammunition());
+            assertTrue(combat.updateRevive(second, 2, true, true));
+        }
+    }
+    @Test void reviveInterruptionReportsReasonOnceAndDiscardsProgress() {
+        var combat = combat();
+        down(combat, first);
+        assertTrue(combat.beginRevive(second, first, 2, true));
+        advance(2000);
+        assertEquals(CombatRun.ReviveUpdate.IN_PROGRESS, combat.updateReviveDetailed(second, 2, true, true));
+        assertEquals(CombatRun.ReviveUpdate.OBSTRUCTED, combat.updateReviveDetailed(second, 2, false, true));
+        assertEquals(CombatRun.ReviveUpdate.NONE, combat.updateReviveDetailed(second, 2, false, true));
+        assertTrue(combat.beginRevive(second, first, 2, true));
+        advance(2000);
+        assertEquals(CombatRun.ReviveUpdate.IN_PROGRESS, combat.updateReviveDetailed(second, 2, true, true));
+        assertEquals(CombatRun.ReviveUpdate.OUT_OF_RANGE, combat.updateReviveDetailed(second, 4, true, true));
+        assertTrue(combat.beginRevive(second, first, 2, true));
+        assertEquals(CombatRun.ReviveUpdate.RELEASED, combat.updateReviveDetailed(second, 2, true, false));
+        assertTrue(combat.beginRevive(second, first, 2, true));
+        advance(3000);
+        assertEquals(CombatRun.ReviveUpdate.REVIVED, combat.updateReviveDetailed(second, 2, true, true));
+        assertEquals(CombatRun.ReviveUpdate.NONE, combat.updateReviveDetailed(second, 2, true, true));
+        assertEquals(1, player(combat, second).stats().revives());
+    }
     @Test void healingAtReloadDeadlinePreservesCompletedMagazineWithoutSnapshotTick() {
         var combat = combat();
         hit(combat, first);
