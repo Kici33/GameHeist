@@ -17,4 +17,29 @@ class MongoDocumentsTest {
         document.put("schemaVersion", 2);
         assertThrows(IllegalStateException.class, () -> MongoDocuments.profile(document));
     }
+    @Test void combatResultsSerializeDeterministicallyWithoutChangingLegacyShape() {
+        UUID first = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID second = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        var crew = Map.of(first, Loadout.starter(Role.SCOUT), second, Loadout.starter(Role.SUPPORT));
+        var now = java.time.Instant.parse("2026-09-14T12:00:00Z");
+        var old = new dev.gameheist.domain.match.MatchResult(UUID.randomUUID(), new dev.gameheist.domain.arena.ArenaKey("graybox", 4),
+                dev.gameheist.domain.match.Difficulty.NORMAL, 1, true, dev.gameheist.domain.match.MatchOutcome.WON, "extracted",
+                now, now, dev.gameheist.domain.match.AlarmState.LOUD, crew, Set.of(), 3);
+        assertFalse(MongoDocuments.result(old).containsKey("combatStats"));
+        var stats = new LinkedHashMap<UUID, dev.gameheist.domain.combat.CombatStats>();
+        stats.put(second, new dev.gameheist.domain.combat.CombatStats(20, 10, 1));
+        stats.put(first, new dev.gameheist.domain.combat.CombatStats(60, 100, 0));
+        var result = new dev.gameheist.domain.match.MatchResult(old.matchId(), old.arena(), old.difficulty(), old.seed(), old.practice(),
+                old.outcome(), old.reason(), old.createdAt(), old.finishedAt(), old.alarm(), crew, Set.of(), 3, stats);
+        var document = MongoDocuments.result(result);
+        var values = Document.parse(document.toJson()).getList("combatStats", Document.class);
+        assertEquals(first.toString(), values.getFirst().getString("playerId"));
+        assertEquals(60, values.getFirst().getInteger("damageDealt"));
+        assertEquals(100, values.getFirst().getInteger("damageTaken"));
+        assertEquals(1, values.getLast().getInteger("revives"));
+        var changed = new Document(document);
+        changed.remove("combatStats");
+        assertEquals(MongoDocuments.result(old), changed);
+        assertEquals(document, MongoDocuments.result(result));
+    }
 }

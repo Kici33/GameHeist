@@ -1,0 +1,99 @@
+id: graybox
+version: 4
+name: Brasslock Combat Graybox
+combat: true
+capacity: 4
+time-limit-seconds: 1200
+bounds:
+  min: [-32.0, 64.0, -32.0]
+  max: [32.0, 96.0, 32.0]
+spawn: [-18.5, 65.0, 0.5]
+objectives:
+  - id: security
+    type: INTERACT
+    phase: INFILTRATION
+    prerequisites: []
+    required: true
+  - id: drill
+    type: DRILL
+    phase: VAULT
+    prerequisites: [security]
+    required: true
+  - id: loot
+    type: LOOT
+    phase: VAULT
+    prerequisites: [drill]
+    required: true
+  - id: escape
+    type: EXTRACT
+    phase: EXTRACTION
+    prerequisites: [loot]
+    required: true
+heist:
+  security:
+    objective: security
+    block: [-12, 65, -5]
+  drill:
+    objective: drill
+    block: [0, 65, 0]
+    duration-seconds: 90
+    repair-seconds: 6
+    jams: 2
+  loot:
+    objective: loot
+    required-bags: 3
+    blocks:
+      - [9, 65, -4]
+      - [9, 65, 0]
+      - [9, 65, 4]
+      - [14, 65, -2]
+      - [14, 65, 2]
+  extraction:
+    objective: escape
+    block: [-20, 65, 9]
+    duration-seconds: 15
+
+guards:
+  - id: vault_guard
+    patrol:
+      - [4.5, 65.0, -10.5]
+      - [17.5, 65.0, -10.5]
+      - [17.5, 65.0, 10.5]
+      - [4.5, 65.0, 10.5]
+    sight-range: 14
+    field-of-view: 100
+    detection-seconds: 3
+    alarm-seconds: 2
+    search-seconds: 8
+    speed: 0.65
+  - id: hall_guard
+    patrol:
+      - [-10.5, 65.0, 12.5]
+      - [-10.5, 65.0, 2.5]
+      - [-2.5, 65.0, 2.5]
+      - [-2.5, 65.0, 12.5]
+    sight-range: 12
+    field-of-view: 100
+    detection-seconds: 3
+    alarm-seconds: 2
+    search-seconds: 8
+    speed: 0.65
+cover:
+  - [-6, 65, -1]
+  - [-6, 66, -1]
+  - [-6, 67, -1]
+  - [-6, 65, 0]
+  - [-6, 66, 0]
+  - [-6, 67, 0]
+  - [-6, 65, 1]
+  - [-6, 66, 1]
+  - [-6, 67, 1]
+  - [5, 65, -5]
+  - [5, 66, -5]
+  - [5, 67, -5]
+  - [5, 65, -4]
+  - [5, 66, -4]
+  - [5, 67, -4]
+  - [5, 65, -3]
+  - [5, 66, -3]
+  - [5, 67, -3]

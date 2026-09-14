@@ -49,6 +49,22 @@ class GuardSquadTest {
         assertEquals(0, squad.snapshots().getFirst().decision().suspicion());
         squad.release();
     }
+    @Test void reinforcementsRespectCapAndShareCleanupOwnership() throws IOException {
+        var squad = squad(22);
+        squad.reinforce(List.of(guard("responder_1"), guard("responder_2")));
+        assertEquals(24, squad.snapshots().size());
+        assertThrows(IllegalArgumentException.class, () -> squad.reinforce(List.of(guard("overflow"))));
+        assertEquals(24, actors.size());
+        squad.release();
+        assertTrue(actors.stream().allMatch(actor -> actor.releases == 1));
+        assertThrows(IllegalStateException.class, () -> squad.reinforce(List.of(guard("late"))));
+    }
+    @Test void duplicateReinforcementsAreRejectedBeforeSpawning() throws IOException {
+        var squad = squad(1);
+        assertThrows(IllegalArgumentException.class, () -> squad.reinforce(List.of(guard("new"), guard("guard_0"))));
+        assertEquals(1, actors.size());
+        squad.release();
+    }
     @Test void filtersOtherCrewsAndDoesNotRayTraceOutOfRangePlayers() throws IOException {
         var squad = squad(1);
         ticks(squad, 8, List.of(player(UUID.randomUUID(), position(0, 5), false), player(member, position(0, 30), false)));

@@ -43,6 +43,8 @@ public final class HeistGameplay {
         if (!player.getWorld().getName().equals(snapshot.worldName()) || player.isDead()
                 || player.getGameMode() != GameMode.ADVENTURE) return;
         if (instances.heistSnapshot(id).isEmpty()) return;
+        var combat = instances.combatSnapshot(id);
+        if (combat.isPresent() && combat.orElseThrow().players().get(player.getUniqueId()).reviving().isPresent()) return;
         Presentation view = view(snapshot);
         long now = System.nanoTime();
         Long previous = view.lastInteraction.get(player.getUniqueId());
@@ -109,6 +111,12 @@ public final class HeistGameplay {
         for (var bag : snapshot.unavailableBags()) {
             if (view.hiddenBags.add(bag)) world.getBlockAt(bag.x(), bag.y(), bag.z()).setType(Material.AIR, false);
         }
+        for (var bag : Set.copyOf(view.hiddenBags)) {
+            if (!snapshot.unavailableBags().contains(bag)) {
+                world.getBlockAt(bag.x(), bag.y(), bag.z()).setType(Material.GOLD_BLOCK, false);
+                view.hiddenBags.remove(bag);
+            }
+        }
         // Only the walk-speed value owned by PlayerSessions is changed/restored.
         for (UUID playerId : instance.match().participants().keySet()) {
             Player player = Bukkit.getPlayer(playerId);
@@ -131,12 +139,20 @@ public final class HeistGameplay {
         view.bar.name(Component.text(instance.match().alarm() + " · " + instruction));
         view.bar.color(state.jammed() ? BossBar.Color.RED : state.extracting() ? BossBar.Color.GREEN : BossBar.Color.BLUE);
         view.bar.progress(Math.min(1f, state.securedBags() / (float) state.requiredBags()));
+        var combat = instances.combatSnapshot(instance.match().id());
         for (UUID playerId : instance.match().participants().keySet()) {
             Player player = Bukkit.getPlayer(playerId);
             if (player == null || !player.getWorld().getName().equals(instance.worldName())) continue;
             if (view.viewers.add(playerId)) player.showBossBar(view.bar);
-            player.sendActionBar(Component.text(state.carriedBags().containsKey(playerId)
-                    ? "Carrying a bag — right click GREEN to secure it" : instruction, NamedTextColor.YELLOW));
+            String status = state.carriedBags().containsKey(playerId) ? "Carrying a bag — right click GREEN to secure it" : instruction;
+            if (combat.isPresent()) {
+                var fighter = combat.orElseThrow().players().get(playerId);
+                if (fighter.downed()) status = "DOWNED — wait for a teammate to revive you";
+                else if (fighter.reviving().isPresent()) status = "Reviving: " + seconds(fighter.reviveMillis()) + "s — keep sneaking nearby";
+                else status = "HP " + fighter.health() + "/100 · " + (fighter.reloadMillis() > 0
+                        ? "Reload " + seconds(fighter.reloadMillis()) + "s" : "Ammo " + fighter.ammunition() + "/12 · F reload") + " · " + status;
+            }
+            player.sendActionBar(Component.text(status, NamedTextColor.YELLOW));
             if (view.lastPhase != instance.match().phase()) {
                 player.sendMessage(Component.text("Heist phase: " + instance.match().phase(), NamedTextColor.AQUA));
             }
@@ -156,6 +172,9 @@ public final class HeistGameplay {
                     Title.Times.times(Duration.ofMillis(200), Duration.ofSeconds(3), Duration.ofMillis(500))));
             player.sendMessage(Component.text("Practice result: " + result.outcome() + " (" + result.reason()
                     + "), " + result.securedBags() + " bags. No progression rewards.", NamedTextColor.AQUA));
+            var contribution = result.combatStats().get(playerId);
+            if (contribution != null) player.sendMessage(Component.text("Your contribution: " + contribution.revives()
+                    + " revives · " + contribution.damageDealt() + " damage dealt · " + contribution.damageTaken() + " damage taken", NamedTextColor.AQUA));
         }
     }
     private static Position position(Player player) {

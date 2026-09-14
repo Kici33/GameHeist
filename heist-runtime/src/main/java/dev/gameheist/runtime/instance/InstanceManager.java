@@ -10,6 +10,7 @@ import dev.gameheist.runtime.arena.ArenaRegistry;
 import dev.gameheist.runtime.persistence.ResultRepository;
 import dev.gameheist.runtime.persistence.ReservationRepository;
 import dev.gameheist.domain.network.*;
+import dev.gameheist.domain.combat.*;
 import java.io.IOException;
 import java.time.*;
 import java.util.*;
@@ -134,6 +135,33 @@ public final class InstanceManager {
     public void updateHeist(UUID id, Map<UUID, Position> presentPlayers) {
         checkThread();
         require(id).match.updateHeist(presentPlayers);
+    }
+    public Optional<CombatSnapshot> combatSnapshot(UUID id) { checkThread(); return require(id).match.combatSnapshot(); }
+    public boolean activePlayer(UUID player) {
+        checkThread();
+        UUID id = playerInstances.get(player);
+        return id != null && require(id).match.activeParticipant(player);
+    }
+    public void registerCombatGuard(UUID id, String guard) { checkThread(); require(id).match.registerCombatGuard(guard); }
+    public boolean canFire(UUID player) { checkThread(); return playerMatch(player).canFire(player); }
+    public boolean fire(UUID player, Optional<String> guard, double distance, boolean clear) {
+        checkThread(); return playerMatch(player).fire(player, guard, distance, clear);
+    }
+    public boolean reload(UUID player) { checkThread(); return playerMatch(player).reload(player); }
+    public CombatRun.Attack attack(UUID id, String guard, Optional<UUID> target, double distance, boolean clear) {
+        checkThread(); return require(id).match.attack(guard, target, distance, clear);
+    }
+    public boolean beginRevive(UUID helper, UUID target, double distance, boolean clear) {
+        checkThread(); return playerMatch(helper).beginRevive(helper, target, distance, clear);
+    }
+    public boolean updateRevive(UUID helper, double distance, boolean clear, boolean holding) {
+        checkThread(); return playerMatch(helper).updateRevive(helper, distance, clear, holding);
+    }
+    public boolean claimWave(UUID id) { checkThread(); return require(id).match.claimWave(); }
+    private Match playerMatch(UUID player) {
+        UUID id = playerInstances.get(player);
+        if (id == null) throw new IllegalStateException("Player is not in an instance");
+        return require(id).match;
     }
     public void stop(UUID id, String reason) {
         checkThread();

@@ -35,7 +35,7 @@ final class MongoDocuments {
     static Document result(MatchResult value) {
         var participants = value.participants().entrySet().stream().sorted(Map.Entry.comparingByKey())
                 .map(e -> new Document("playerId", e.getKey().toString()).append("loadout", loadout(e.getValue()))).toList();
-        return new Document("_id", value.matchId().toString()).append("schemaVersion", 1)
+        var document = new Document("_id", value.matchId().toString()).append("schemaVersion", 1)
                 .append("arena", new Document("id", value.arena().id()).append("version", value.arena().version()))
                 .append("difficulty", value.difficulty().name()).append("seed", value.seed())
                 .append("practice", value.practice()).append("outcome", value.outcome().name())
@@ -43,5 +43,11 @@ final class MongoDocuments {
                 .append("finishedAt", value.finishedAt().toString()).append("alarm", value.alarm().name())
                 .append("participants", participants).append("completedObjectives", value.completedObjectives().stream().sorted().toList())
                 .append("securedBags", value.securedBags());
+        // Optional additive field keeps older non-combat result retry identities unchanged.
+        if (!value.combatStats().isEmpty()) document.append("combatStats", value.combatStats().entrySet().stream()
+                .sorted(Map.Entry.comparingByKey()).map(e -> new Document("playerId", e.getKey().toString())
+                        .append("damageDealt", e.getValue().damageDealt()).append("damageTaken", e.getValue().damageTaken())
+                        .append("revives", e.getValue().revives())).toList());
+        return document;
     }
 }

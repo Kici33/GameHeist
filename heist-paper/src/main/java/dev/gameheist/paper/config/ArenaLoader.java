@@ -37,7 +37,7 @@ public final class ArenaLoader {
                             text(yaml.get("name")), new Bounds(position(yaml.getList("bounds.min")),
                             position(yaml.getList("bounds.max"))), position(yaml.getList("spawn")),
                             integer(yaml.get("capacity")), Duration.ofSeconds(integer(yaml.get("time-limit-seconds"))),
-                            objectives, heist(yaml), guards(yaml), cover(yaml)));
+                            objectives, heist(yaml), guards(yaml), cover(yaml), combat(yaml)));
                 } catch (Exception failure) {
                     throw new IOException("Invalid arena " + path.getFileName() + ": " + failure.getMessage(), failure);
                 }
@@ -49,6 +49,11 @@ public final class ArenaLoader {
     private static String text(Object value) {
         if (!(value instanceof String string) || string.isBlank()) throw new IllegalArgumentException("Expected nonblank text");
         return string;
+    }
+    private static boolean combat(YamlConfiguration yaml) {
+        if (!yaml.contains("combat")) return false;
+        if (!(yaml.get("combat") instanceof Boolean enabled)) throw new IllegalArgumentException("Expected combat boolean");
+        return enabled;
     }
     private static Optional<HeistDefinition> heist(YamlConfiguration yaml) {
         if (!yaml.contains("heist")) return Optional.empty();

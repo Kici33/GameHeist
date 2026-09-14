@@ -1,6 +1,6 @@
 # GameHeist
 
-A Minecraft Java **26.1.2** cooperative heist portfolio project. The [GDD](GDD.md) describes the intended game. This repository now includes a **guarded graybox objective loop** with patrols, suspicion, and alarm escalation. It is not yet the complete combat minigame or network.
+A Minecraft Java **26.1.2** cooperative heist portfolio project. The [GDD](GDD.md) describes the intended game. This repository includes a **combat graybox objective loop** with patrols, suspicion, alarm escalation, carbine fire, and teammate revives. It is not yet the complete minigame or network; the combat slice still needs real-client playtesting.
 
 ## Build
 
@@ -33,12 +33,13 @@ Review and accept Minecraft's EULA yourself when setting up the server. No serve
 - Labeled placeholder props, crew HUD, carrying slowdown, and result summaries with secured bag counts.
 - Configured guard patrols, field-of-view/line-of-sight detection, noise investigation, interrupted alarm attempts, pursuit, and last-seen search in `graybox:3`.
 - Staggered guard updates, bounded path requests, stuck retirement, scoped NPC cleanup, and operator diagnostics.
+- Opt-in `graybox:4` combat: carbine, telegraphed guard attacks, one reinforcement wave, incapacitation, revives, crew defeat, and saved combat contributions.
 - Admission gated on successful pack application when the development bypass is off.
 - Read-only heartbeat/capacity endpoints: `http://127.0.0.1:8081/live` and `/ready`.
 - Lobby profile loading, three editable preset slots, saved settings, and revision-checked MongoDB profiles/results (opt-in).
 - Regression tests, dependency locks, reproducible jar settings, and CI configuration.
 
-The profile repository is tested but **not yet connected to player menus or the practice command**. Practice joins currently select a starter loadout directly.
+Profiles are connected to practice joins through saved presets. Graphical player menus remain future work.
 
 ## Try an isolated practice session
 
@@ -61,9 +62,22 @@ Guard name labels show state and suspicion for this development map. `/heist gua
 
 `/heist alarm <uuid>` switches to loud state; `/heist stop <uuid>` aborts a session. `/heist drain` closes admission and profile edits, and reports when acknowledged work and cleanup make shutdown safe. See the [drain protocol](docs/draining.md). Raise `instances.maximum` to two in a local test server to exercise isolation; the intended deployed architecture remains one match per process.
 
-All current sessions are practice sessions: **no rewards, no durable player progression, no NPC combat**. Physical interactions validate crew membership, game phase, proximity, and a server-side block ray trace. Offhand duplicate events are ignored. Bags are authoritative logical objects rather than inventory items; a real bag-slot visual is still future work. A player disconnect currently aborts the crew's practice session. The GDD's reconnect flow is not implemented yet.
+All current sessions are practice sessions: **no rewards or durable player progression**. Combat is enabled only by the new version 4 manifest. Physical interactions validate crew membership, game phase, proximity, and a server-side block ray trace. Offhand duplicate events are ignored. Bags are authoritative logical objects rather than inventory items; a real bag-slot visual is still future work. A player disconnect currently aborts the crew's practice session. The GDD's reconnect flow is not implemented yet.
 
-`graybox:1` remains the original admin-driven lifecycle arena; version 2 keeps the unguarded physical loop. `/heist complete` works only on version 1, preventing physical state desynchronization. All three versioned manifests are installed without overwriting existing files. Restart after updating the plugin; do not hot-reload it.
+`graybox:1` remains the original admin-driven lifecycle arena; version 2 keeps the unguarded physical loop; version 3 keeps damage-free guard testing. `/heist complete` works only on version 1, preventing physical state desynchronization. All four versioned manifests are installed without overwriting existing files. Restart after updating the plugin; do not hot-reload it.
+
+## Combat practice (`graybox:4`)
+
+Create with `/heist create graybox 4`, join, then start using the same commands above. Combat starts with two patrol guards. Player inventory is temporarily replaced by a carbine in hotbar slot 1; original contents and selected slot are restored on normal exit, abort, disconnect, and graceful shutdown. Native Minecraft health is unchanged: the action bar shows authoritative combat HP, ammunition, and reload/revive progress.
+
+- Left click with the carbine to fire. Each magazine has 12 rounds, shots are at least 300 milliseconds apart, range is 24 blocks, and three hits defeat a full-health guard. Walls and players block the shot; friendly fire is disabled. Any accepted shot raises the alarm, including a miss.
+- Press the swap-hands key (default **F**) to reload for two seconds. This practice slice has unlimited reserve ammunition. Right click still operates objective markers.
+- Loud guards aim for one second before dealing 10 damage (6 for solo crews), then wait 2.5 seconds before starting another aim. Breaking line of sight or moving beyond 16 blocks interrupts aim. The player receives a text warning before each attack.
+- One responder wave arrives 15 seconds after the alarm: one responder for a solo crew, two for larger crews, spawning at existing patrol starts. There are no recurring waves. All actors share the squad's 24-guard hard cap and cleanup scope.
+- At zero combat HP, players are downed and cannot move, fire, repair, collect loot, vote, or satisfy extraction presence. A carried bag returns exactly once to its original gold marker. Downing everyone produces a LOST result with reason `crew_incapacitated`.
+- Sneak and right click a downed teammate, then keep sneaking within three blocks with clear sight. Reviving takes four seconds, or three for Support, and restores 50 HP. Damage, movement out of range, loss of sight, releasing sneak, firing, or starting a reload cancels the revive. There is no bleed-out timer in this slice.
+
+Combat contributions (damage dealt, damage taken, and revives) appear in the result message and immutable saved results. `/heist stats` still reports its existing totals and does not aggregate these new fields yet. The medkit remains a placeholder. See the [combat smoke tests](docs/manual-verification.md#combat-and-recovery-graybox4) before treating the slice as playtested.
 
 ## Resource pack
 
@@ -84,7 +98,7 @@ See [architecture and extension points](docs/architecture.md), [manual verificat
 
 ## Current operational limits
 
-Redis, BungeeCord/lobby routing, Agones allocation, NPC damage/weapons/reinforcements, finished arenas, and custom assets are future work. Current guards are invulnerable native-mob placeholders with vanilla goals removed and damage disabled. Do not expose this practice adapter as a production network.
+Redis, BungeeCord/lobby routing, Agones allocation, additional weapons/gadgets, sustained reinforcement pressure, finished arenas, and custom assets are future work. Guards use native-mob placeholders with vanilla goals removed and vanilla damage disabled; version 4 applies custom combat rules. Do not expose this practice adapter as a production network.
 
 With `storage.mode: mongodb`, acknowledged profiles/results persist in MongoDB. The operator history shows only the last 100 acknowledged results from this server run. Memory mode loses all data at restart. Neither mode is a reward ledger. Health endpoints provide process/admission information, not historical metrics. The health listener defaults to loopback; binding it to a pod interface must be accompanied by network restrictions.
 
@@ -99,8 +113,8 @@ Players load their profile on connection. `/heist profile` shows the acknowledge
 - `/heist preset 2 SCOUT` creates or replaces slot 2 and selects it. Missing earlier slots use the Technician starter loadout.
 - `/heist preset 1` selects an existing slot.
 - `/heist join <uuid>` captures the selected saved loadout. The optional role argument remains a practice-only override and does not edit the profile.
-- `/heist settings sound off` disables the custom guard alarm sound. It does not mute vanilla Minecraft sounds.
-- `/heist settings particles off` saves a reduced-particles preference for future effects; no custom particle effects currently consume it. Language remains English. Equipment is still the starter carbine/medkit catalog, without functional weapons or gadgets.
+- `/heist settings sound off` disables custom guard alarm and carbine sounds. It does not mute vanilla Minecraft sounds.
+- `/heist settings particles off` saves a reduced-particles preference for future effects; no custom particle effects currently consume it. Language remains English. Equipment uses the starter carbine/medkit catalog: the carbine functions in combat arenas, while the medkit remains a placeholder.
 
 Storage defaults to explicit development memory mode. For persistence, set `storage.mode: mongodb` and `storage.database: gameheist` in the plugin configuration, and supply `HEIST_MONGODB_URI` in the server process environment. Keep credentials in deployment secrets, never in tracked configuration. Restart after changing storage mode. Existing memory data is not migrated. MongoDB failure never switches storage back to memory.
 
@@ -108,13 +122,13 @@ MongoDB writes use majority acknowledgement, profile revision comparisons, and u
 
 ## Player statistics
 
-Use `/heist stats graybox 3 1` to view your solo practice results for graybox version 3, or replace the final argument with your crew size (1–4). This command currently queries NORMAL difficulty, matching the practice creation command. Historic arena versions remain queryable even if their manifests are no longer installed.
+Use `/heist stats graybox 3 1` to view your solo practice results for graybox version 3, or replace the final argument with your crew size (1â€“4). This command currently queries NORMAL difficulty, matching the practice creation command. Historic arena versions remain queryable even if their manifests are no longer installed.
 
 Totals include wins, gameplay losses, aborted runs, stealth wins, and crew-secured bags. Aborts are separate from gameplay losses. Bags describe the whole crew's secured total across recorded outcomes, including aborts; they are not personal bag contributions. Statistics include only saved terminal results, so an active or unacknowledged run does not appear yet.
 
 MongoDB calculates totals from immutable results, separated by player, arena version, difficulty, crew size, and practice mode. Repeated saves cannot double-count a result. Memory mode reports only the bounded recent history and can lose totals through eviction or restart. Requests have a five-second cooldown, bounded concurrency, and background database execution.
 
-This is a personal practice summary, not a leaderboard or reward system. Revives, damage, individual contributions, playtime, and best times need additional gameplay tracking before they can be reported accurately.
+This is a personal practice summary, not a leaderboard or reward system. Combat results now record damage and revives, but statistics aggregation for those fields remains pending. Other individual contributions, playtime, and best times need additional gameplay tracking.
 
 ## Drain before shutdown
 
@@ -127,3 +141,9 @@ InfluxDB export and a provisioned Grafana dashboard are implemented. They cover 
 ## Container and Kubernetes foundation
 
 A non-root Java 25 image now packages pinned Paper 26.1.2 build 74 and the plugin. The Kubernetes lab template includes configuration, resource limits, probes, and a bounded preStop drain helper. It defaults to zero replicas with EULA acceptance disabled. See [build, configuration, and verification](docs/deployment.md). Image packaging and manifest schemas passed locally; a Minecraft server and live cluster have not been started.
+
+## Reservation admission foundation
+
+Reservation models, MongoDB and process-local repositories, and runtime reserved-admission hooks are present. The local store serializes crew acquisition, backend assignment, and admission claims. It retains request identities until restart for retry detection and is intended only for development and tests.
+
+Tests cover concurrent crew acquisition, stale backend identities, admission deadlines, retries, and partial-transfer retention. Expired unclaimed reservations can be replaced; partially admitted crews remain reserved until the assigned backend releases them after finalization and cleanup. BungeeCord transport and the complete lobby/coordinator path remain pending.

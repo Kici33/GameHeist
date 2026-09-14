@@ -77,11 +77,11 @@ public final class HeistRun {
             if (secured < definition.requiredBags()) throw new IllegalStateException("Secure more bags before extracting");
             if (extractionDeadline != null) return "Extraction is counting down. Stay near the green marker.";
             votes.add(player);
-            if (votes.size() > match.participantCount() / 2) {
+            if (votes.size() > match.activeParticipantCount() / 2) {
                 extractionDeadline = clock.instant().plus(definition.extractionDuration());
                 return "Crew majority reached. Extraction started; gather at the green marker.";
             }
-            return "Extraction vote recorded (" + votes.size() + "/" + (match.participantCount() / 2 + 1) + ").";
+            return "Extraction vote recorded (" + votes.size() + "/" + (match.activeParticipantCount() / 2 + 1) + ").";
         }
         return "Use the labeled security, drill, loot, or extraction blocks.";
     }
@@ -123,6 +123,14 @@ public final class HeistRun {
                 votes.clear();
             }
         }
+    }
+
+    /** Return carried loot to its authored marker exactly once; it can be collected again. */
+    public void incapacitate(UUID player) {
+        BlockPosition bag = carried.remove(player);
+        if (bag != null) unavailable.remove(bag);
+        votes.remove(player);
+        if (player.equals(repairingPlayer)) { repairingPlayer = null; repairDeadline = null; }
     }
 
     public HeistSnapshot snapshot() {

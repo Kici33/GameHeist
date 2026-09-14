@@ -9,6 +9,7 @@ import dev.gameheist.paper.command.StatisticsView;
 import dev.gameheist.paper.config.ArenaLoader;
 import dev.gameheist.paper.gameplay.HeistGameplay;
 import dev.gameheist.paper.npc.GuardController;
+import dev.gameheist.paper.npc.CombatController;
 import dev.gameheist.paper.listener.PracticeListener;
 import dev.gameheist.paper.pack.ResourcePackGate;
 import dev.gameheist.paper.world.*;
@@ -48,6 +49,7 @@ public final class HeistPlugin extends JavaPlugin {
             if (!Files.exists(arenaDirectory.resolve("graybox.yml"))) saveResource("arenas/graybox.yml", false);
             if (!Files.exists(arenaDirectory.resolve("graybox-v2.yml"))) saveResource("arenas/graybox-v2.yml", false);
             if (!Files.exists(arenaDirectory.resolve("graybox-v3.yml"))) saveResource("arenas/graybox-v3.yml", false);
+            if (!Files.exists(arenaDirectory.resolve("graybox-v4.yml"))) saveResource("arenas/graybox-v4.yml", false);
             var arenas = ArenaLoader.load(arenaDirectory);
             var fallback = Bukkit.getWorld(Objects.requireNonNull(getConfig().getString("instances.fallback-world")));
             if (fallback == null || fallback.getName().startsWith("heist_")) {
@@ -75,6 +77,7 @@ public final class HeistPlugin extends JavaPlugin {
             drain = new DrainController(instances, profiles, worlds::cleanupHealthy);
             var gameplay = new HeistGameplay(instances, arenas, players);
             var guards = new GuardController(instances, arenas, players, getLogger(), profiles::soundEnabled);
+            var combat = new CombatController(instances, players, guards, getLogger(), profiles::soundEnabled);
             var statistics = new StatisticsView(storage != null ? storage : results, storage != null);
             var command = Objects.requireNonNull(getCommand("heist"));
             var executor = new HeistCommand(instances, arenas, packs, players, results, getLogger(), guards, profiles, storage != null, statistics, drain);
@@ -82,6 +85,7 @@ public final class HeistPlugin extends JavaPlugin {
             command.setTabCompleter(executor);
             Bukkit.getPluginManager().registerEvents(packs, this);
             Bukkit.getPluginManager().registerEvents(guards, this);
+            Bukkit.getPluginManager().registerEvents(combat, this);
             Bukkit.getPluginManager().registerEvents(statistics, this);
             Bukkit.getPluginManager().registerEvents(new ProfileListener(profiles), this);
             Bukkit.getPluginManager().registerEvents(new PracticeListener(instances, arenas, players, getLogger(), gameplay), this);
@@ -109,8 +113,9 @@ public final class HeistPlugin extends JavaPlugin {
                 if (health != null && health.drainRequested()) drain.drain();
                 profiles.tick();
                 statistics.tick();
-                gameplay.tick();
                 guards.tick();
+                combat.tick();
+                gameplay.tick();
                 instances.tick();
                 if (health != null) {
                     int active = instances.all().size();

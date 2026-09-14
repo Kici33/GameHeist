@@ -16,7 +16,7 @@ final class PaperGuardActor implements GuardActor {
     private final Set<UUID> ownedEntities;
     private boolean released;
 
-    PaperGuardActor(World world, GuardDefinition definition, Set<UUID> ownedEntities) throws IOException {
+    PaperGuardActor(World world, GuardDefinition definition, Set<UUID> ownedEntities, boolean combat) throws IOException {
         var start = definition.patrol().getFirst();
         Vindicator spawned = null;
         var partiallyCreated = new java.util.concurrent.atomic.AtomicReference<Vindicator>();
@@ -30,7 +30,8 @@ final class PaperGuardActor implements GuardActor {
                 guard.setCanPickupItems(false);
                 guard.setCollidable(false);
                 guard.setSilent(true);
-                guard.setInvulnerable(true);
+                // Combat actors must emit click damage events; the controller cancels all vanilla damage.
+                guard.setInvulnerable(!combat);
                 guard.setLootTable(null);
                 guard.getEquipment().clear();
                 Bukkit.getMobGoals().removeAllGoals(guard);
@@ -54,6 +55,7 @@ final class PaperGuardActor implements GuardActor {
     }
 
     @Override public boolean alive() { return !released && entity.isValid() && !entity.isDead(); }
+    org.bukkit.util.BoundingBox hitBox() { return entity.getBoundingBox(); }
     @Override public Position position() { return position(entity.getLocation()); }
     @Override public Position eyePosition() { return position(entity.getEyeLocation()); }
     @Override public boolean canSee(UUID playerId) {

@@ -6,7 +6,7 @@ Run this against a dedicated Paper 26.1.2 server and matching vanilla client. Th
 
 - Install the bundled Paper jar, not the domain/runtime jars.
 - Verify successful initialization and the practice-only/development-pack warning.
-- Check `/heist arenas` lists `graybox:1`, `graybox:2`, and `graybox:3`.
+- Check `/heist arenas` lists `graybox:1`, `graybox:2`, `graybox:3`, and `graybox:4`.
 - `GET /live` returns 200 after ticks begin; `/ready` returns 200 with free capacity.
 - A malformed arena manifest should disable the plugin with a filename and useful error.
 
@@ -51,6 +51,25 @@ Use `graybox:1` for the original admin-completion checks below.
 - Deliberately obstruct a route in an isolated test: after bounded retries the stuck guard is retired and logged, with no teleport or respawn loop.
 - Abort, complete, and stop the server. NPCs must stop/remove with their instance and never resume during asynchronous world deletion.
 - Guards and players remain damage-protected in this slice. Confirm no vanilla melee attack, raid behavior, drops, or block griefing bypasses the custom controller.
+
+## Combat and recovery (`graybox:4`)
+
+These real-client checks remain pending. Start with two players, then repeat solo and with two independent instances.
+
+- Before joining, put distinct items in storage, armor, and offhand slots and note the selected hotbar slot. Create/start version 4. Verify the temporary carbine, unchanged native hearts, and combat HP/ammo action bar. Verify version 3 still has no combat or inventory replacement.
+- Left click air, a guard at melee distance, and a guard at range. Each click should produce at most one accepted shot, and right-clicking objectives must never fire. Fast clicks must not exceed the 300ms interval. Empty the magazine, press F, and verify a two-second reload; repeated F must not restart it or refill instantly.
+- Shoot a guard through a cover wall, beyond 24 blocks, and behind another crew member. No blocked target should lose HP; crew members must never take friendly-fire damage. An unobstructed guard needs three hits. Defeated guards must disappear without drops or vanilla melee/raid behavior.
+- Fire a miss during stealth. The HUD should show LOUD with objectives preserved. After 15 seconds, verify one wave of two responders (one when solo), then no further waves. Inspect `/heist guards <uuid>` and cleanup after the wave.
+- Let a loud guard aim. Verify a one-second text warning, 10 damage per hit (6 solo), and a 2.5-second cooldown before another aim. Step behind cover or beyond 16 blocks during the warning: no damage. Return and verify a new full warning period. Changing targets must also restart aim.
+- Down a player while carrying a bag and while repairing a jam. The downed player must stop moving/shooting/interacting, the repair must cancel, and exactly one gold bag must reappear at its original marker. A teammate must be able to collect and deposit it once.
+- Sneak/right-click a downed teammate. Verify four seconds for ordinary roles and three for Support, with 50 HP on revival. Move out of range, release sneak, break sight, take damage, shoot, or reload: progress must cancel and require another interaction. Two simultaneous helpers must produce only one credited revive.
+- Down one player at the extraction marker and leave the active player outside it. The countdown must reset without a win. Retry with the active player present: extraction succeeds. Confirm votes use the active crew and downed players lose earlier votes.
+- Down the entire crew. Verify one LOST result with `crew_incapacitated`, never an ABORTED outcome or vanilla death. Test solo defeat too.
+- Finish, abort, disconnect, and gracefully stop separate sessions. Verify exact original inventory contents and held slot, location, game mode, walk speed, and unchanged native health. Cancel a return teleport with a test plugin, then allow cleanup retry; restoration must happen once without duplicating items.
+- Verify result feedback includes each player's actual damage and revives. In MongoDB mode inspect the sorted `combatStats` result field; a repeated save must not duplicate contributions. The existing `/heist stats` command does not aggregate them yet.
+- Run two version 4 sessions. Shots, guards, revives, waves, contributions, inventory ownership, and cleanup must remain isolated. Disable custom sound in the lobby and check the carbine and alarm are muted while text cues remain.
+
+Acceptance target: two players trigger the alarm, use cover, fight the small wave, revive each other, complete the drill, secure three bags, and extract. Record balance observations and client/server versions; automated rule tests do not establish combat feel or native pathfinding acceptance.
 
 ## General isolation and cleanup
 

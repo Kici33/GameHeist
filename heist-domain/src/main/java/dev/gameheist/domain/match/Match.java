@@ -8,6 +8,7 @@ import dev.gameheist.domain.objective.HeistSnapshot;
 import dev.gameheist.domain.objective.ObjectiveDefinition;
 import dev.gameheist.domain.player.Loadout;
 import dev.gameheist.domain.player.LoadoutCatalog;
+import dev.gameheist.domain.combat.*;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.*;
@@ -29,6 +30,7 @@ public final class Match {
     private Instant deadline;
     private MatchResult result;
     private final Optional<HeistRun> heist;
+    private CombatRun combat;
 
     public Match(UUID id, ArenaDefinition arena, Difficulty difficulty, long seed,
                  boolean practice, Clock clock, LoadoutCatalog catalog) {
@@ -62,6 +64,7 @@ public final class Match {
         if (participants.isEmpty()) throw new IllegalStateException("Cannot start an empty crew");
         deadline = clock.instant().plus(arena.timeLimit());
         phase = MatchPhase.INFILTRATION;
+        if (arena.combat()) combat = new CombatRun(participants, clock);
     }
 
     public void raiseAlarm() {
@@ -92,6 +95,7 @@ public final class Match {
 
     public void tick() {
         if (phase.gameplay() && !clock.instant().isBefore(deadline)) finish(MatchOutcome.LOST, "time_limit");
+        if (phase.gameplay() && combat != null && combat.defeated()) finish(MatchOutcome.LOST, "crew_incapacitated");
     }
 
     public void abort(String reason) {
@@ -119,21 +123,58 @@ public final class Match {
         return loadout;
     }
     public Optional<HeistSnapshot> heistSnapshot() { return heist.map(HeistRun::snapshot); }
+    public Optional<CombatSnapshot> combatSnapshot() { return Optional.ofNullable(combat).map(CombatRun::snapshot); }
+    public boolean activeParticipant(UUID id) { return hasParticipant(id) && (combat == null || combat.active(id)); }
+    public int activeParticipantCount() { return (int) participants.keySet().stream().filter(this::activeParticipant).count(); }
+    public void registerCombatGuard(String id) { requireCombat().registerGuard(id); }
+    public boolean canFire(UUID id) { tick(); return phase.gameplay() && combat != null && combat.canFire(id); }
+    public boolean fire(UUID player, Optional<String> hit, double distance, boolean clear) {
+        boolean fired = requireCombat().fire(player, hit, distance, clear);
+        if (fired) raiseAlarm();
+        return fired;
+    }
+    public boolean reload(UUID player) { return requireCombat().reload(player); }
+    public CombatRun.Attack attack(String guard, Optional<UUID> target, double distance, boolean clear) {
+        var outcome = requireCombat().attack(guard, target, distance, clear, alarm == AlarmState.LOUD);
+        if (outcome == CombatRun.Attack.HIT) {
+            target.filter(id -> !activeParticipant(id)).ifPresent(id -> heist.ifPresent(run -> run.incapacitate(id)));
+            tick();
+        }
+        return outcome;
+    }
+    public boolean beginRevive(UUID helper, UUID target, double distance, boolean clear) {
+        return requireCombat().beginRevive(helper, target, distance, clear);
+    }
+    public boolean updateRevive(UUID helper, double distance, boolean clear, boolean holding) {
+        return requireCombat().updateRevive(helper, distance, clear, holding);
+    }
+    public boolean claimWave() { return requireCombat().claimWave(alarm == AlarmState.LOUD); }
+    private CombatRun requireCombat() {
+        requireGameplay();
+        if (combat == null) throw new IllegalStateException("Combat is not enabled in this arena");
+        return combat;
+    }
     public String interact(UUID playerId, BlockPosition block, Position position) {
         requireGameplay();
+        if (!activeParticipant(playerId)) throw new IllegalStateException("Only active crew members can interact");
         return heist.orElseThrow(() -> new IllegalStateException("Arena has no physical heist layout"))
                 .interact(playerId, block, position);
     }
     public void updateHeist(Map<UUID, Position> presentPlayers) {
         tick();
-        if (phase.gameplay()) heist.ifPresent(run -> run.tick(Map.copyOf(presentPlayers)));
+        if (phase.gameplay()) {
+            Map<UUID, Position> active = new HashMap<>();
+            presentPlayers.forEach((id, position) -> { if (activeParticipant(id)) active.put(id, position); });
+            heist.ifPresent(run -> run.tick(Map.copyOf(active)));
+        }
     }
 
     private void finish(MatchOutcome outcome, String reason) {
         if (Objects.requireNonNull(reason).isBlank()) throw new IllegalArgumentException("Reason is blank");
         result = new MatchResult(id, arena.key(), difficulty, seed, practice, outcome, reason,
                 createdAt, clock.instant(), alarm, participants, completed,
-                heist.map(run -> run.snapshot().securedBags()).orElse(0));
+                heist.map(run -> run.snapshot().securedBags()).orElse(0),
+                combat == null ? Map.of() : combat.contributions());
         phase = MatchPhase.FINALIZING;
     }
 

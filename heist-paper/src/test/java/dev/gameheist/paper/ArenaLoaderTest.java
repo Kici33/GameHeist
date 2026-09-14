@@ -84,6 +84,24 @@ class ArenaLoaderTest {
         assertEquals(4, arena.guards().getFirst().patrol().size());
         assertTrue(arena.heist().isPresent());
     }
+    @Test void combatArenaLoadsWithoutChangingExistingVersion() throws IOException {
+        Files.writeString(directory.resolve("v3.yml"), guardedSample());
+        try (var stream = Objects.requireNonNull(getClass().getResourceAsStream("/arenas/graybox-v4.yml"))) {
+            Files.copy(stream, directory.resolve("v4.yml"));
+        }
+        var registry = ArenaLoader.load(directory);
+        assertFalse(registry.require(new ArenaKey("graybox", 3)).combat());
+        var arena = registry.require(new ArenaKey("graybox", 4));
+        assertTrue(arena.combat());
+        assertEquals(2, arena.guards().size());
+        assertEquals(3, arena.heist().orElseThrow().requiredBags());
+    }
+    @Test void combatFlagMustBeBooleanAndRequiresGuardsAndPhysicalObjectives() throws IOException {
+        Files.writeString(directory.resolve("bad.yml"), guardedSample() + "\ncombat: yesplease\n");
+        assertThrows(IOException.class, () -> ArenaLoader.load(directory));
+        Files.writeString(directory.resolve("bad.yml"), physicalSample() + "\ncombat: true\n");
+        assertThrows(IOException.class, () -> ArenaLoader.load(directory));
+    }
     @Test void guardRouteOutsideBoundsIsRejected() throws IOException {
         Files.writeString(directory.resolve("bad.yml"), guardedSample().replace("[4.5, 65.0, -10.5]", "[100.5, 65.0, -10.5]"));
         assertThrows(IOException.class, () -> ArenaLoader.load(directory));

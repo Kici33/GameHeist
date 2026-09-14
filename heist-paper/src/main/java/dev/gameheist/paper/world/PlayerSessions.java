@@ -2,17 +2,21 @@ package dev.gameheist.paper.world;
 
 import org.bukkit.*;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import net.kyori.adventure.text.Component;
 import java.util.*;
 
-/** Only tracks the state this practice adapter changes. Inventory/health are never replaced. */
+/** Owns practice movement and, in combat arenas, a temporary inventory. Native health is untouched. */
 public final class PlayerSessions {
     private final World fallback;
     private final Map<UUID, SavedState> saved = new HashMap<>();
     private final Set<UUID> transferring = new HashSet<>();
+    private final Map<UUID, InventoryState> inventories = new HashMap<>();
     public PlayerSessions(World fallback) { this.fallback = Objects.requireNonNull(fallback); }
 
     public void enter(Player player, Location destination) {
         if (saved.containsKey(player.getUniqueId())) throw new IllegalStateException("Player already has a saved session");
+        player.closeInventory();
         SavedState state = new SavedState(player.getLocation().clone(), player.getGameMode(), player.getWalkSpeed());
         saved.put(player.getUniqueId(), state);
         if (!transfer(player, destination)) {
@@ -33,9 +37,29 @@ public final class PlayerSessions {
             player.setGameMode(state.gameMode());
             player.setWalkSpeed(state.walkSpeed());
         }
+        InventoryState inventory = inventories.get(player.getUniqueId());
+        if (inventory != null) {
+            player.getInventory().setContents(copy(inventory.contents()));
+            player.getInventory().setHeldItemSlot(inventory.heldSlot());
+            inventories.remove(player.getUniqueId());
+        }
         saved.remove(player.getUniqueId());
     }
     public boolean contains(UUID playerId) { return saved.containsKey(playerId); }
+    public void equipCombat(Player player) {
+        if (!saved.containsKey(player.getUniqueId()) || inventories.containsKey(player.getUniqueId())) return;
+        player.closeInventory();
+        inventories.put(player.getUniqueId(), new InventoryState(copy(player.getInventory().getContents()), player.getInventory().getHeldItemSlot()));
+        player.getInventory().clear();
+        ItemStack gun = new ItemStack(Material.IRON_HOE);
+        gun.editMeta(meta -> {
+            meta.displayName(Component.text("Carbine | Left click: fire | F: reload"));
+            meta.setUnbreakable(true);
+        });
+        player.getInventory().setItem(0, gun);
+        player.getInventory().setHeldItemSlot(0);
+        player.sendMessage(Component.text("Carbine: left click to fire, F to reload. Sneak + right click a downed teammate, then keep sneaking nearby to revive."));
+    }
     public void carrying(Player player, boolean carrying) {
         SavedState state = saved.get(player.getUniqueId());
         if (state == null) return;
@@ -49,4 +73,8 @@ public final class PlayerSessions {
         finally { transferring.remove(player.getUniqueId()); }
     }
     private record SavedState(Location location, GameMode gameMode, float walkSpeed) {}
+    private record InventoryState(ItemStack[] contents, int heldSlot) {}
+    private static ItemStack[] copy(ItemStack[] contents) {
+        return Arrays.stream(contents).map(item -> item == null ? null : item.clone()).toArray(ItemStack[]::new);
+    }
 }

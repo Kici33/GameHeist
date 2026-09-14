@@ -24,6 +24,7 @@ public final class GuardController implements Listener {
     private final java.util.function.Predicate<UUID> soundEnabled;
     private final Map<UUID, GuardSquad> squads = new HashMap<>();
     private final Set<UUID> ownedEntities = new HashSet<>();
+    private final Map<UUID, Map<String, PaperGuardActor>> actors = new HashMap<>();
 
     public GuardController(InstanceManager instances, ArenaRegistry arenas, PlayerSessions players, Logger logger, java.util.function.Predicate<UUID> soundEnabled) {
         this.instances = instances;
@@ -50,17 +51,23 @@ public final class GuardController implements Listener {
                 GuardSquad squad = squads.get(id);
                 if (squad == null) {
                     squad = new GuardSquad(arena.guards(), instance.match().participants().keySet(),
-                            definition -> new PaperGuardActor(world, definition, ownedEntities),
+                            definition -> {
+                                var actor = new PaperGuardActor(world, definition, ownedEntities, arena.combat());
+                                actors.computeIfAbsent(id, ignored -> new LinkedHashMap<>()).put(definition.id(), actor);
+                                return actor;
+                            },
                             () -> alarm(id), message -> logger.warning("Match " + id + ": " + message));
                     GuardSquad owned = squad;
-                    instances.own(id, () -> { owned.release(); squads.remove(id); });
+                    instances.own(id, () -> { owned.release(); squads.remove(id); actors.remove(id); });
                     squads.put(id, squad);
                     squad.start();
+                    if (arena.combat()) for (var guard : arena.guards()) instances.registerCombatGuard(id, guard.id());
                 }
                 List<GuardPlayer> present = new ArrayList<>();
                 for (var member : instance.match().participants().entrySet()) {
                     Player player = Bukkit.getPlayer(member.getKey());
                     if (player == null || !player.isOnline() || player.isDead() || !players.contains(member.getKey())
+                            || !instances.activePlayer(member.getKey())
                             || player.getGameMode() != GameMode.ADVENTURE || !player.getWorld().equals(world)) continue;
                     present.add(new GuardPlayer(member.getKey(), PaperGuardActor.position(player.getLocation()),
                             PaperGuardActor.position(player.getEyeLocation()), player.isSneaking(), player.isSprinting(), member.getValue().role()));
@@ -94,6 +101,29 @@ public final class GuardController implements Listener {
                 + " lastUpdateMicros=" + state.updateMicros()).toList();
     }
 
+    Map<String, PaperGuardActor> actors(UUID id) { return actors.getOrDefault(id, Map.of()); }
+    List<GuardDiagnostic> decisions(UUID id) {
+        var squad = squads.get(id);
+        return squad == null ? List.of() : squad.snapshots();
+    }
+    void reinforce(UUID id) throws java.io.IOException {
+        var arena = arenas.require(instances.snapshot(id).match().arena());
+        var squad = squads.get(id);
+        if (squad == null) throw new IllegalStateException("Missing combat squad");
+        List<dev.gameheist.domain.npc.GuardDefinition> wave = new ArrayList<>();
+        int count = Math.min(2, instances.snapshot(id).match().participants().size());
+        for (int i = 0; i < count; i++) {
+            var base = arena.guards().get(i % arena.guards().size());
+            String name = "responder_" + i;
+            // Select a fresh ID even for user-authored guard names.
+            while (actors(id).containsKey(name)) name += "_r";
+            wave.add(new dev.gameheist.domain.npc.GuardDefinition(name, base.patrol(), base.sightRange(), base.fieldOfView(),
+                    base.detectionTime(), base.alarmTime(), base.searchTime(), base.speed()));
+        }
+        squad.reinforce(wave);
+        for (var guard : wave) instances.registerCombatGuard(id, guard.id());
+    }
+
     private void alarm(UUID id) {
         if (instances.snapshot(id).match().alarm() == AlarmState.LOUD) return;
         instances.raiseAlarm(id);
@@ -110,7 +140,7 @@ public final class GuardController implements Listener {
     @EventHandler(ignoreCancelled = true) public void onTarget(EntityTargetLivingEntityEvent event) {
         if (ownedEntities.contains(event.getEntity().getUniqueId())) event.setCancelled(true);
     }
-    @EventHandler(ignoreCancelled = true) public void onDamage(EntityDamageEvent event) {
+    @EventHandler(priority = EventPriority.HIGHEST) public void onDamage(EntityDamageEvent event) {
         if (ownedEntities.contains(event.getEntity().getUniqueId())) event.setCancelled(true);
         if (event instanceof EntityDamageByEntityEvent attack && ownedEntities.contains(attack.getDamager().getUniqueId())) {
             event.setCancelled(true);

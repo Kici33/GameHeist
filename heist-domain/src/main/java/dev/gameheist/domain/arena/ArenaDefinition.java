@@ -10,7 +10,12 @@ import java.util.*;
 /** Immutable published content; mutable objective state belongs to each Match. */
 public record ArenaDefinition(ArenaKey key, String displayName, Bounds bounds, Position spawn,
                               int capacity, Duration timeLimit, List<ObjectiveDefinition> objectives,
-                              Optional<HeistDefinition> heist, List<GuardDefinition> guards, List<BlockPosition> cover) {
+                              Optional<HeistDefinition> heist, List<GuardDefinition> guards, List<BlockPosition> cover, boolean combat) {
+    public ArenaDefinition(ArenaKey key, String displayName, Bounds bounds, Position spawn, int capacity,
+                           Duration timeLimit, List<ObjectiveDefinition> objectives, Optional<HeistDefinition> heist,
+                           List<GuardDefinition> guards, List<BlockPosition> cover) {
+        this(key, displayName, bounds, spawn, capacity, timeLimit, objectives, heist, guards, cover, false);
+    }
     public ArenaDefinition(ArenaKey key, String displayName, Bounds bounds, Position spawn, int capacity,
                            Duration timeLimit, List<ObjectiveDefinition> objectives, Optional<HeistDefinition> heist,
                            List<GuardDefinition> guards) {
@@ -47,6 +52,9 @@ public record ArenaDefinition(ArenaKey key, String displayName, Bounds bounds, P
             }
         }
         guards = List.copyOf(guards);
+        if (combat && (heist.isEmpty() || guards.isEmpty() || guards.size() > 22)) {
+            throw new IllegalArgumentException("Combat requires a physical heist and 1-22 guards, leaving room for two responders");
+        }
         if (guards.size() > 24) throw new IllegalArgumentException("Arena supports at most 24 guards");
         Set<String> guardIds = new HashSet<>();
         for (GuardDefinition guard : guards) {

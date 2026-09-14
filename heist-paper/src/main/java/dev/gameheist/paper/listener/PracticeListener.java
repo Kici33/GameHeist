@@ -10,9 +10,10 @@ import org.bukkit.event.*;
 import org.bukkit.event.block.*;
 import org.bukkit.event.entity.*;
 import org.bukkit.event.player.*;
+import org.bukkit.event.inventory.*;
 import java.util.logging.Logger;
 
-/** Protects the graybox; real combat/reconnect rules are deliberately not enabled yet. */
+/** Protects the graybox; combat damage is applied by the domain, never vanilla events. */
 public final class PracticeListener implements Listener {
     private final InstanceManager instances;
     private final ArenaRegistry arenas;
@@ -42,6 +43,15 @@ public final class PracticeListener implements Listener {
     @EventHandler(ignoreCancelled = true) public void onDrop(PlayerDropItemEvent event) {
         if (players.contains(event.getPlayer().getUniqueId())) event.setCancelled(true);
     }
+    @EventHandler public void onInventoryClick(InventoryClickEvent event) {
+        if (players.contains(event.getWhoClicked().getUniqueId())) event.setCancelled(true);
+    }
+    @EventHandler public void onInventoryDrag(InventoryDragEvent event) {
+        if (players.contains(event.getWhoClicked().getUniqueId())) event.setCancelled(true);
+    }
+    @EventHandler public void onPickup(EntityPickupItemEvent event) {
+        if (players.contains(event.getEntity().getUniqueId())) event.setCancelled(true);
+    }
     @EventHandler public void onInteract(PlayerInteractEvent event) {
         if (!players.contains(event.getPlayer().getUniqueId())) return;
         // Custom markers have no vanilla use action; keep vanilla denied but handle our own scoped interaction.
@@ -52,6 +62,13 @@ public final class PracticeListener implements Listener {
         if (!players.contains(event.getPlayer().getUniqueId())) return;
         var id = instances.instanceOf(event.getPlayer().getUniqueId());
         if (id.isEmpty() || event.getTo() == null || !event.getFrom().getWorld().equals(event.getTo().getWorld())) return;
+        if (!instances.activePlayer(event.getPlayer().getUniqueId())) {
+            var fixed = event.getFrom().clone();
+            fixed.setYaw(event.getTo().getYaw());
+            fixed.setPitch(event.getTo().getPitch());
+            event.setTo(fixed);
+            return;
+        }
         var destination = event.getTo();
         var arena = arenas.require(instances.snapshot(id.orElseThrow()).match().arena());
         if (!arena.bounds().contains(new Position(destination.getX(), destination.getY(), destination.getZ(),
@@ -61,6 +78,7 @@ public final class PracticeListener implements Listener {
         var playerId = event.getPlayer().getUniqueId();
         if (players.transferring(playerId) || event.getTo() == null) return;
         if (players.contains(playerId)) {
+            if (!instances.activePlayer(playerId)) { event.setCancelled(true); return; }
             var id = instances.instanceOf(playerId);
             if (id.isEmpty()) { event.setCancelled(true); return; }
             var snapshot = instances.snapshot(id.orElseThrow());

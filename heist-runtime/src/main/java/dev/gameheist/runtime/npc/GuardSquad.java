@@ -35,7 +35,17 @@ public final class GuardSquad implements ManagedResource {
     public void start() throws IOException {
         if (started || released) throw new IllegalStateException("Squad already started or released");
         started = true;
-        for (var definition : definitions) {
+        reinforce(definitions);
+    }
+
+    /** All spawned actors, including partial failures, stay in the same cleanup scope. */
+    public void reinforce(List<GuardDefinition> additions) throws IOException {
+        if (!started || paused || released) throw new IllegalStateException("Squad cannot accept reinforcements");
+        if (guards.size() + additions.size() > 24) throw new IllegalArgumentException("Squad cap exceeded");
+        Set<String> ids = new HashSet<>();
+        guards.forEach(g -> ids.add(g.definition.id()));
+        for (var definition : additions) if (!ids.add(definition.id())) throw new IllegalArgumentException("Duplicate guard ID");
+        for (var definition : additions) {
             GuardActor actor = Objects.requireNonNull(spawner.spawn(definition));
             resources.own(actor);
             if (!actor.alive()) throw new IOException("Guard spawn rejected: " + definition.id());
