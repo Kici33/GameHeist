@@ -8,6 +8,36 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CombatRunTest {
+    @Test void healingAtReloadDeadlinePreservesCompletedMagazineWithoutSnapshotTick() {
+        var combat = combat();
+        hit(combat, first);
+        combat.fire(first, Optional.empty(), 1, true);
+        combat.reload(first);
+        advance(2000);
+        assertTrue(combat.useMedkit(first));
+        assertEquals(CombatRun.MAGAZINE, player(combat, first).ammunition());
+    }
+    @Test void healingBeforeReloadDeadlineStillInterruptsMagazineRefill() {
+        var combat = combat();
+        hit(combat, first);
+        combat.fire(first, Optional.empty(), 1, true);
+        combat.reload(first);
+        advance(1999);
+        assertTrue(combat.useMedkit(first));
+        advance(1);
+        assertEquals(CombatRun.MAGAZINE - 1, player(combat, first).ammunition());
+    }
+    @Test void receivedHealingDoesNotInterruptRecipientsReload() {
+        var combat = combat();
+        hit(combat, second);
+        combat.fire(second, Optional.empty(), 1, true);
+        combat.reload(second);
+        advance(1000);
+        assertTrue(combat.useMedkit(first, second, 2, true));
+        assertEquals(1000, player(combat, second).reloadMillis());
+        advance(1000);
+        assertEquals(CombatRun.MAGAZINE, player(combat, second).ammunition());
+    }
     @Test void medkitCanHealCrewButSpendsOnlyHelpersCharge() {
         var combat = combat();
         for (int i = 0; i < 6; i++) hit(combat, second);

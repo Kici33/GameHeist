@@ -63,6 +63,8 @@ public final class CombatRun {
         Fighter player = require(helper), recipient = require(target);
         if (!player.medkit || player.health == 0 || recipient.health == 0 || recipient.health == 100
                 || !clear || !inRange(distance, REVIVE_RANGE)) return false;
+        // Complete elapsed reloads before interrupting pending work; HUD polling is not authoritative.
+        tickReload(player);
         recipient.health = Math.min(100, recipient.health + 40);
         player.medkit = false;
         player.reloadAt = null;
