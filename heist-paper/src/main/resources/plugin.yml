@@ -1,0 +1,17 @@
+name: GameHeist
+version: '${version}'
+main: dev.gameheist.paper.HeistPlugin
+api-version: '26.1.2'
+description: Isolated GameHeist practice instances and domain foundation
+commands:
+  heist:
+    description: Manage GameHeist practice instances
+    usage: /heist help
+    permission: heist.play
+permissions:
+  heist.play:
+    description: Join practice crews and view available arenas
+    default: true
+  heist.admin:
+    description: Manage isolated practice sessions (no progression rewards)
+    default: op

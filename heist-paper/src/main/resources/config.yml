@@ -1,0 +1,32 @@
+# This foundation runs practice sessions only. No rewards. Durable profiles require MongoDB mode.
+instances:
+  maximum: 1
+  # Must be an existing non-instance world.
+  fallback-world: world
+
+resource-pack:
+  # Explicit local-development exception; disable once a real pack is hosted.
+  development-bypass: true
+  id: '873f1299-715e-430a-ae57-a43b96f20e92'
+  url: ''
+  sha1: ''
+  timeout-seconds: 60
+
+health:
+  enabled: true
+  bind-address: '127.0.0.1'
+  port: 8081
+  stale-after-seconds: 15
+storage:
+  # Development default. Set mongodb and supply HEIST_MONGODB_URI to persist data.
+  mode: memory
+  database: gameheist
+
+metrics:
+  enabled: false
+  url: 'http://127.0.0.1:18086'
+  organization: gameheist
+  bucket: heist_metrics
+  # Unique stable server slot; do not use player IDs or per-match UUIDs.
+  server-id: local-1
+  # Token comes only from HEIST_INFLUX_TOKEN. Samples are sent every five seconds.

@@ -1,0 +1,9 @@
+**
+!heist-paper/
+!heist-paper/build/
+!heist-paper/build/libs/
+!heist-paper/build/libs/heist-paper-0.1.0-SNAPSHOT.jar
+!ops/
+!ops/server/
+!ops/server/Dockerfile
+!ops/server/start.sh

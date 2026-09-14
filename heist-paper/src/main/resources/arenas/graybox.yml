@@ -1,0 +1,30 @@
+id: graybox
+version: 1
+name: Graybox Bank
+capacity: 4
+time-limit-seconds: 1200
+bounds:
+  min: [-32.0, 64.0, -32.0]
+  max: [32.0, 96.0, 32.0]
+spawn: [0.5, 65.0, 0.5]
+objectives:
+  - id: security
+    type: INTERACT
+    phase: INFILTRATION
+    prerequisites: []
+    required: true
+  - id: drill
+    type: DRILL
+    phase: VAULT
+    prerequisites: [security]
+    required: true
+  - id: loot
+    type: LOOT
+    phase: VAULT
+    prerequisites: [drill]
+    required: true
+  - id: escape
+    type: EXTRACT
+    phase: EXTRACTION
+    prerequisites: [loot]
+    required: true

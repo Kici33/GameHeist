@@ -1,0 +1,25 @@
+instances:
+  maximum: 1
+  fallback-world: world
+resource-pack:
+  # Supply your real pack, or explicitly enable bypass for a private graybox test.
+  development-bypass: false
+  id: '873f1299-715e-430a-ae57-a43b96f20e92'
+  url: ''
+  sha1: ''
+  timeout-seconds: 60
+health:
+  enabled: true
+  bind-address: '0.0.0.0'
+  port: 8081
+  stale-after-seconds: 15
+storage:
+  mode: mongodb
+  database: gameheist
+metrics:
+  # Enable only after providing the reachable Influx origin and secret token.
+  enabled: false
+  url: 'http://influxdb:8086'
+  organization: gameheist
+  bucket: heist_metrics
+  server-id: kubernetes

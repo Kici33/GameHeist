@@ -1,0 +1,62 @@
+name: Build and test
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      influxdb:
+        image: influxdb:2.7.12
+        ports:
+          - 18086:8086
+        env:
+          DOCKER_INFLUXDB_INIT_MODE: setup
+          DOCKER_INFLUXDB_INIT_USERNAME: heist
+          DOCKER_INFLUXDB_INIT_PASSWORD: ci-disposable-password
+          DOCKER_INFLUXDB_INIT_ORG: gameheist
+          DOCKER_INFLUXDB_INIT_BUCKET: heist_metrics
+          DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ci-disposable-token
+        options: >-
+          --health-cmd "influx bucket list --org gameheist --token ci-disposable-token"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      mongodb:
+        image: mongo:8.0.12
+        ports:
+          - 27028:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ping:1})'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      HEIST_MONGO_TESTS: 'true'
+      HEIST_INFLUX_TESTS: 'true'
+      HEIST_INFLUX_TEST_TOKEN: ci-disposable-token
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Build and run regression tests
+        run: bash ./gradlew clean build --no-daemon
+      - name: Build server image without starting Minecraft
+        run: docker build -f ops/server/Dockerfile -t gameheist:26.1.2-dev .
+      - name: Verify image and EULA refusal
+        run: python3 ops/server/verify.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GameHeist-plugin
+          path: heist-paper/build/libs/heist-paper-0.1.0-SNAPSHOT.jar
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: '**/build/reports/tests/'

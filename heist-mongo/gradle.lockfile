@@ -1,0 +1,7 @@
+# This is a Gradle generated file for dependency locking.
+# Manual edits can break the build and are not advised.
+# This file is expected to be part of source control.
+org.mongodb:bson:5.5.1=compileClasspath
+org.mongodb:mongodb-driver-core:5.5.1=compileClasspath
+org.mongodb:mongodb-driver-sync:5.5.1=compileClasspath
+empty=annotationProcessor

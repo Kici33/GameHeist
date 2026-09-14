@@ -1,0 +1,53 @@
+id: graybox
+version: 2
+name: Brasslock Objective Graybox
+capacity: 4
+time-limit-seconds: 1200
+bounds:
+  min: [-32.0, 64.0, -32.0]
+  max: [32.0, 96.0, 32.0]
+spawn: [-18.5, 65.0, 0.5]
+objectives:
+  - id: security
+    type: INTERACT
+    phase: INFILTRATION
+    prerequisites: []
+    required: true
+  - id: drill
+    type: DRILL
+    phase: VAULT
+    prerequisites: [security]
+    required: true
+  - id: loot
+    type: LOOT
+    phase: VAULT
+    prerequisites: [drill]
+    required: true
+  - id: escape
+    type: EXTRACT
+    phase: EXTRACTION
+    prerequisites: [loot]
+    required: true
+heist:
+  security:
+    objective: security
+    block: [-12, 65, -5]
+  drill:
+    objective: drill
+    block: [0, 65, 0]
+    duration-seconds: 90
+    repair-seconds: 6
+    jams: 2
+  loot:
+    objective: loot
+    required-bags: 3
+    blocks:
+      - [9, 65, -4]
+      - [9, 65, 0]
+      - [9, 65, 4]
+      - [14, 65, -2]
+      - [14, 65, 2]
+  extraction:
+    objective: escape
+    block: [-20, 65, 9]
+    duration-seconds: 15
