@@ -88,6 +88,19 @@ public final class CombatController implements Listener {
         if (event.getHand() == EquipmentSlot.HAND && (event.getAction() == Action.LEFT_CLICK_AIR
                 || event.getAction() == Action.LEFT_CLICK_BLOCK)) fire(event.getPlayer());
     }
+    @EventHandler public void onMedkit(PlayerInteractEvent event) {
+        Player player = event.getPlayer();
+        if (event.getHand() != EquipmentSlot.HAND || (event.getAction() != Action.RIGHT_CLICK_AIR
+                && event.getAction() != Action.RIGHT_CLICK_BLOCK) || !players.contains(player.getUniqueId())
+                || player.getInventory().getHeldItemSlot() != 1
+                || player.getInventory().getItemInMainHand().getType() != Material.PAPER) return;
+        event.setCancelled(true);
+        if (combatInstance(player) == null) return;
+        if (instances.useMedkit(player.getUniqueId())) {
+            player.getInventory().setItem(1, null);
+            player.sendMessage(Component.text("Medkit used: restored up to 40 HP.", NamedTextColor.GREEN));
+        } else player.sendActionBar(Component.text("Medkit requires an injury and cannot revive you.", NamedTextColor.YELLOW));
+    }
     // Entity clicks have a separate event; the domain fire interval absorbs duplicate input events.
     @EventHandler public void onMelee(EntityDamageByEntityEvent event) {
         if (event.getDamager() instanceof Player player && players.contains(player.getUniqueId())) {

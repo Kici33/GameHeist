@@ -148,6 +148,7 @@ public final class InstanceManager {
         checkThread(); return playerMatch(player).fire(player, guard, distance, clear);
     }
     public boolean reload(UUID player) { checkThread(); return playerMatch(player).reload(player); }
+    public boolean useMedkit(UUID player) { checkThread(); return playerMatch(player).useMedkit(player); }
     public CombatRun.Attack attack(UUID id, String guard, Optional<UUID> target, double distance, boolean clear) {
         checkThread(); return require(id).match.attack(guard, target, distance, clear);
     }

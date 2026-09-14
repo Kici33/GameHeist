@@ -134,6 +134,7 @@ public final class Match {
         return fired;
     }
     public boolean reload(UUID player) { return requireCombat().reload(player); }
+    public boolean useMedkit(UUID player) { return requireCombat().useMedkit(player); }
     public CombatRun.Attack attack(String guard, Optional<UUID> target, double distance, boolean clear) {
         var outcome = requireCombat().attack(guard, target, distance, clear, alarm == AlarmState.LOUD);
         if (outcome == CombatRun.Attack.HIT) {

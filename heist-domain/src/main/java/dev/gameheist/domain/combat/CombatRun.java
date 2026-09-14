@@ -54,6 +54,16 @@ public final class CombatRun {
         cancelRevive(player);
         return true;
     }
+    /** One self-heal per run; failed uses never consume the charge. */
+    public boolean useMedkit(UUID id) {
+        Fighter player = require(id);
+        if (!player.medkit || player.health == 0 || player.health == 100) return false;
+        player.health = Math.min(100, player.health + 40);
+        player.medkit = false;
+        player.reloadAt = null;
+        cancelRevive(player);
+        return true;
+    }
     /** No catch-up burst: each attack requires a fresh uninterrupted aim and cooldown. */
     public Attack attack(String id, Optional<UUID> candidate, double distance, boolean clear, boolean loud) {
         Guard guard = guards.get(id);
@@ -119,7 +129,7 @@ public final class CombatRun {
         players.forEach((id, p) -> {
             tickReload(p);
             crew.put(id, new CombatSnapshot.Player(p.health, p.ammunition, remaining(p.reloadAt),
-                    Optional.ofNullable(p.reviving), remaining(p.reviveAt), new CombatStats(p.dealt, p.taken, p.revives)));
+                    Optional.ofNullable(p.reviving), remaining(p.reviveAt), new CombatStats(p.dealt, p.taken, p.revives), p.medkit));
         });
         Map<String, Integer> enemies = new LinkedHashMap<>();
         guards.forEach((id, g) -> enemies.put(id, g.health));
@@ -146,6 +156,7 @@ public final class CombatRun {
     private static void cancelRevive(Fighter p) { p.reviving = null; p.reviveAt = null; }
     private static final class Fighter {
         private final Role role;
+        private boolean medkit = true;
         private int health = 100, ammunition = MAGAZINE, dealt, taken, revives;
         private Instant nextShot = Instant.MIN, reloadAt, reviveAt;
         private UUID reviving;

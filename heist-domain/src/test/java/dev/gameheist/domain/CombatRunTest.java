@@ -8,6 +8,46 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CombatRunTest {
+    @Test void medkitIsPersonalSingleUseAndClampsHealth() {
+        var combat = combat();
+        assertFalse(combat.useMedkit(first));
+        assertTrue(player(combat, first).medkitAvailable());
+        hit(combat, first);
+        assertTrue(combat.useMedkit(first));
+        assertEquals(100, player(combat, first).health());
+        hit(combat, first);
+        assertFalse(combat.useMedkit(first));
+        assertEquals(90, player(combat, first).health());
+        assertTrue(player(combat, second).medkitAvailable());
+        assertEquals(20, player(combat, first).stats().damageTaken());
+        assertThrows(IllegalArgumentException.class, () -> combat.useMedkit(UUID.randomUUID()));
+    }
+    @Test void medkitCannotReviveButRemainsAvailableAfterTeammateRescue() {
+        var combat = combat();
+        down(combat, first);
+        assertFalse(combat.useMedkit(first));
+        assertTrue(combat.beginRevive(second, first, 2, true));
+        advance(3000);
+        assertTrue(combat.updateRevive(second, 2, true, true));
+        assertTrue(combat.useMedkit(first));
+        assertEquals(90, player(combat, first).health());
+    }
+    @Test void healingCancelsReloadAndReviveWithoutRestockingAmmo() {
+        var combat = combat();
+        down(combat, third);
+        hit(combat, first);
+        combat.fire(first, Optional.empty(), 1, true);
+        combat.reload(first);
+        assertTrue(combat.useMedkit(first));
+        advance(3000);
+        assertEquals(11, player(combat, first).ammunition());
+        hit(combat, second);
+        assertTrue(combat.beginRevive(second, third, 2, true));
+        assertTrue(combat.useMedkit(second));
+        advance(4000);
+        assertFalse(combat.updateRevive(second, 2, true, true));
+        assertTrue(player(combat, third).downed());
+    }
     private final Fixtures.MutableClock clock = new Fixtures.MutableClock();
     private final UUID first = UUID.randomUUID(), second = UUID.randomUUID(), third = UUID.randomUUID();
     private CombatRun combat() {

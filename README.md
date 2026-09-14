@@ -77,7 +77,7 @@ Create with `/heist create graybox 4`, join, then start using the same commands 
 - At zero combat HP, players are downed and cannot move, fire, repair, collect loot, vote, or satisfy extraction presence. A carried bag returns exactly once to its original gold marker. Downing everyone produces a LOST result with reason `crew_incapacitated`.
 - Sneak and right click a downed teammate, then keep sneaking within three blocks with clear sight. Reviving takes four seconds, or three for Support, and restores 50 HP. Damage, movement out of range, loss of sight, releasing sneak, firing, or starting a reload cancels the revive. There is no bleed-out timer in this slice.
 
-Combat contributions (damage dealt, damage taken, and revives) appear in the result message, immutable saved results, and personal `/heist stats` totals. The medkit remains a placeholder. See the [combat smoke tests](docs/manual-verification.md#combat-and-recovery-graybox4) before treating the slice as playtested.
+Combat contributions (damage dealt, damage taken, and revives) appear in the result message, immutable saved results, and personal `/heist stats` totals. The medkit occupies slot 2: right click to restore up to 40 logical HP once per run. Full-health and downed players cannot consume it. Healing interrupts reload/revive actions; it does not change native hearts or erase damage statistics. The HUD shows charge availability. See the [combat smoke tests](docs/manual-verification.md#combat-and-recovery-graybox4) before treating the slice as playtested.
 
 ## Resource pack
 

@@ -41,6 +41,10 @@ public final class HeistGameplay {
         if (event.getHand() != EquipmentSlot.HAND || event.getAction() != Action.RIGHT_CLICK_BLOCK
                 || event.getClickedBlock() == null) return;
         Player player = event.getPlayer();
+        // Slot 2 belongs to the combat medkit; one click must not also operate an objective.
+        if (players.contains(player.getUniqueId()) && player.getInventory().getHeldItemSlot() == 1
+                && player.getInventory().getItemInMainHand().getType() == Material.PAPER
+                && instances.instanceOf(player.getUniqueId()).flatMap(instances::combatSnapshot).isPresent()) return;
         var instanceId = instances.instanceOf(player.getUniqueId());
         if (instanceId.isEmpty() || !players.contains(player.getUniqueId())) return;
         UUID id = instanceId.orElseThrow();
@@ -177,7 +181,8 @@ public final class HeistGameplay {
                 if (fighter.downed()) status = "DOWNED — wait for a teammate to revive you";
                 else if (fighter.reviving().isPresent()) status = "Reviving: " + seconds(fighter.reviveMillis()) + "s — keep sneaking nearby";
                 else status = "HP " + fighter.health() + "/100 · " + (fighter.reloadMillis() > 0
-                        ? "Reload " + seconds(fighter.reloadMillis()) + "s" : "Ammo " + fighter.ammunition() + "/12 · F reload") + " · " + status;
+                        ? "Reload " + seconds(fighter.reloadMillis()) + "s" : "Ammo " + fighter.ammunition() + "/12 · F reload")
+                        + (fighter.medkitAvailable() ? " · Medkit: slot 2" : " · Medkit used") + " · " + status;
             }
             player.sendActionBar(Component.text(status, NamedTextColor.YELLOW));
             if (view.lastPhase != instance.match().phase()) {
