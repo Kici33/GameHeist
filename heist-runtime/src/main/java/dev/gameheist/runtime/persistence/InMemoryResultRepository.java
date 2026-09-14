@@ -26,7 +26,7 @@ public final class InMemoryResultRepository implements ResultRepository, Statist
     @Override public synchronized CompletionStage<PlayerStatistics> statistics(UUID playerId, StatisticsScope scope) {
         var statistics = PlayerStatistics.empty();
         for (var result : results.values()) {
-            if (result.participants().containsKey(playerId) && scope.matches(result)) statistics = statistics.include(result);
+            if (result.participants().containsKey(playerId) && scope.matches(result)) statistics = statistics.include(result, playerId);
         }
         return CompletableFuture.completedFuture(statistics);
     }

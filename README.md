@@ -77,7 +77,7 @@ Create with `/heist create graybox 4`, join, then start using the same commands 
 - At zero combat HP, players are downed and cannot move, fire, repair, collect loot, vote, or satisfy extraction presence. A carried bag returns exactly once to its original gold marker. Downing everyone produces a LOST result with reason `crew_incapacitated`.
 - Sneak and right click a downed teammate, then keep sneaking within three blocks with clear sight. Reviving takes four seconds, or three for Support, and restores 50 HP. Damage, movement out of range, loss of sight, releasing sneak, firing, or starting a reload cancels the revive. There is no bleed-out timer in this slice.
 
-Combat contributions (damage dealt, damage taken, and revives) appear in the result message and immutable saved results. `/heist stats` still reports its existing totals and does not aggregate these new fields yet. The medkit remains a placeholder. See the [combat smoke tests](docs/manual-verification.md#combat-and-recovery-graybox4) before treating the slice as playtested.
+Combat contributions (damage dealt, damage taken, and revives) appear in the result message, immutable saved results, and personal `/heist stats` totals. The medkit remains a placeholder. See the [combat smoke tests](docs/manual-verification.md#combat-and-recovery-graybox4) before treating the slice as playtested.
 
 ## Resource pack
 
@@ -129,7 +129,9 @@ Totals include wins, gameplay losses, aborted runs, stealth wins, and crew-secur
 
 MongoDB calculates totals from immutable results, separated by player, arena version, difficulty, crew size, and practice mode. Repeated saves cannot double-count a result. Memory mode reports only the bounded recent history and can lose totals through eviction or restart. Requests have a five-second cooldown, bounded concurrency, and background database execution.
 
-This is a personal practice summary, not a leaderboard or reward system. Combat results now record damage and revives, but statistics aggregation for those fields remains pending. Other individual contributions, playtime, and best times need additional gameplay tracking.
+Personal damage dealt, damage taken, and revives are summed across the same saved results, including aborted runs. Other crew members' combat contributions are excluded. Historical results without combat data add zero to these fields while still counting toward runs and outcomes. Use `/heist stats graybox 4 2` for two-player combat practice totals.
+
+This is a personal practice summary, not a leaderboard or reward system. Other individual contributions, playtime, and best times need additional gameplay tracking.
 
 ## Drain before shutdown
 

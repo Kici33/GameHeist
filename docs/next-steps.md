@@ -10,4 +10,4 @@
 
 For every slice: add behavior tests, run the dedicated-server smoke test, and update the README's verified capabilities. The broader design and acceptance targets remain in the GDD.
 
-The next player-visible milestone is real-client acceptance and tuning of the combat/revive loop. Damage and revives are now saved per result; aggregation and other contributions remain future work. Receipt processing and lobby transfer remain foundation follow-ups. Kubernetes and network integration are independent later steps, as planned in the GDD.
+The next player-visible milestone is real-client acceptance and tuning of the combat/revive loop. Damage and revives are saved per result and aggregated by player in `/heist stats`, including historical results without combat data. Memory behavior tests pass; the additional MongoDB integration test requires the isolated database fixture. Other contributions remain future work. Receipt processing and lobby transfer remain foundation follow-ups. Kubernetes and network integration are independent later steps, as planned in the GDD.

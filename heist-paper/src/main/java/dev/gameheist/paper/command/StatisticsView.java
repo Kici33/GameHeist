@@ -47,6 +47,8 @@ public final class StatisticsView implements Listener {
                     request.player.sendMessage(Component.text("Runs=" + stats.runs() + "; wins=" + stats.wins()
                             + "; losses=" + stats.losses() + "; aborted=" + stats.aborted()
                             + "; stealth wins=" + stats.stealthWins() + "; crew bags=" + stats.crewSecuredBags()));
+                    request.player.sendMessage(Component.text("Your combat contribution: damage dealt=" + stats.damageDealt()
+                            + "; damage taken=" + stats.damageTaken() + "; revives=" + stats.revives()));
                 } catch (RuntimeException failure) {
                     request.player.sendMessage(Component.text("Statistics unavailable. Try again shortly; no totals were changed."));
                 }

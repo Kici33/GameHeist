@@ -94,12 +94,22 @@ public final class MongoStore implements ProfileRepository, ResultRepository, St
                     .append("aborted", countIf(new Document("$eq", List.of("$outcome", "ABORTED"))))
                     .append("stealthWins", countIf(new Document("$and", List.of(
                             new Document("$eq", List.of("$outcome", "WON")), new Document("$eq", List.of("$alarm", "STEALTH"))))))
-                    .append("bags", new Document("$sum", "$securedBags"));
+                    .append("bags", new Document("$sum", "$securedBags"))
+                    .append("damageDealt", new Document("$sum", "$personalCombat.damageDealt"))
+                    .append("damageTaken", new Document("$sum", "$personalCombat.damageTaken"))
+                    .append("revives", new Document("$sum", "$personalCombat.revives"));
+            // Filter before grouping: crew contributions must never count toward another player's totals.
+            // Missing combatStats on historical results yields zero without dropping the run.
+            var personal = new Document("$arrayElemAt", List.of(new Document("$filter", new Document("input",
+                    new Document("$ifNull", List.of("$combatStats", List.of())))
+                    .append("as", "combat").append("cond", new Document("$eq", List.of("$$combat.playerId", playerId.toString())))), 0));
             var row = results.aggregate(List.of(com.mongodb.client.model.Aggregates.match(filter),
+                    new Document("$set", new Document("personalCombat", personal)),
                     new Document("$group", group))).maxTime(3, TimeUnit.SECONDS).first();
             if (row == null) return PlayerStatistics.empty();
             return new PlayerStatistics(number(row, "wins"), number(row, "losses"), number(row, "aborted"),
-                    number(row, "stealthWins"), number(row, "bags"));
+                    number(row, "stealthWins"), number(row, "bags"), number(row, "damageDealt"),
+                    number(row, "damageTaken"), number(row, "revives"));
         });
     }
     private synchronized void ensureStatisticsIndex() {

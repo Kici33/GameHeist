@@ -10,6 +10,26 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class StatisticsTest {
+    @Test void combatTotalsArePersonalRetrySafeAndIncludeHistoricalRuns() {
+        var repository = new InMemoryResultRepository(10);
+        UUID other = UUID.randomUUID();
+        var roster = Map.of(player, Loadout.starter(Role.SCOUT), other, Loadout.starter(Role.SUPPORT));
+        var combat = new MatchResult(UUID.randomUUID(), scope.arena(), Difficulty.NORMAL, 1, true,
+                MatchOutcome.WON, "combat", Instant.EPOCH, Instant.EPOCH.plusSeconds(20), AlarmState.LOUD,
+                roster, Set.of(), 3, Map.of(player, new dev.gameheist.domain.combat.CombatStats(120, 30, 1),
+                        other, new dev.gameheist.domain.combat.CombatStats(40, 100, 0)));
+        repository.save(combat).toCompletableFuture().join();
+        repository.save(combat).toCompletableFuture().join();
+        repository.save(new MatchResult(UUID.randomUUID(), scope.arena(), Difficulty.NORMAL, 1, true,
+                MatchOutcome.ABORTED, "legacy", Instant.EPOCH, Instant.EPOCH.plusSeconds(20), AlarmState.LOUD,
+                roster, Set.of(), 0)).toCompletableFuture().join();
+        var crewScope = new StatisticsScope(scope.arena(), Difficulty.NORMAL, 2, true);
+        assertEquals(new PlayerStatistics(1, 0, 1, 0, 3, 120, 30, 1), repository.statistics(player, crewScope).toCompletableFuture().join());
+        assertEquals(new PlayerStatistics(1, 0, 1, 0, 3, 40, 100, 0), repository.statistics(other, crewScope).toCompletableFuture().join());
+        assertThrows(IllegalArgumentException.class, () -> PlayerStatistics.empty().include(combat, UUID.randomUUID()));
+        assertThrows(ArithmeticException.class, () -> new PlayerStatistics(0, 0, 0, 0, 0, Long.MAX_VALUE, 0, 0).include(combat, player));
+        assertThrows(IllegalArgumentException.class, () -> new PlayerStatistics(0, 0, 0, 0, 0, 0, -1, 0));
+    }
     private final UUID player = UUID.randomUUID();
     private final StatisticsScope scope = new StatisticsScope(new ArenaKey("graybox", 3), Difficulty.NORMAL, 1, true);
 

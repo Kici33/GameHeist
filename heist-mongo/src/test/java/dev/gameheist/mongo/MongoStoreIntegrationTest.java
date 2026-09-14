@@ -15,6 +15,30 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Opt-in isolated fixture only: never reads the application's database URI. */
 @EnabledIfEnvironmentVariable(named = "HEIST_MONGO_TESTS", matches = "true")
 class MongoStoreIntegrationTest {
+    @Test void combatTotalsMatchMemoryIncludingMissingPersonalAndLegacyStats() throws Exception {
+        UUID player = UUID.randomUUID(), other = UUID.randomUUID();
+        var roster = Map.of(player, Loadout.starter(Role.SCOUT), other, Loadout.starter(Role.SUPPORT));
+        var scope = new StatisticsScope(new ArenaKey("graybox", 4), Difficulty.NORMAL, 2, true);
+        var memory = new dev.gameheist.runtime.persistence.InMemoryResultRepository(10);
+        var contributions = List.of(Map.of(player, new dev.gameheist.domain.combat.CombatStats(120, 30, 1),
+                        other, new dev.gameheist.domain.combat.CombatStats(40, 100, 0)),
+                Map.of(other, new dev.gameheist.domain.combat.CombatStats(10, 5, 2)),
+                Map.<UUID, dev.gameheist.domain.combat.CombatStats>of());
+        for (var stats : contributions) {
+            var result = new MatchResult(UUID.randomUUID(), scope.arena(), Difficulty.NORMAL, 1, true,
+                    MatchOutcome.WON, "combat", Instant.EPOCH, Instant.EPOCH.plusSeconds(20), AlarmState.LOUD,
+                    roster, Set.of(), 3, stats);
+            await(store.save(result));
+            await(store.save(result));
+            await(memory.save(result));
+        }
+        try (var reopened = new MongoStore(URI, database)) {
+            assertEquals(new PlayerStatistics(3, 0, 0, 0, 9, 120, 30, 1), await(reopened.statistics(player, scope)));
+            assertEquals(new PlayerStatistics(3, 0, 0, 0, 9, 50, 105, 2), await(reopened.statistics(other, scope)));
+            assertEquals(await(memory.statistics(player, scope)), await(reopened.statistics(player, scope)));
+            assertEquals(await(memory.statistics(other, scope)), await(reopened.statistics(other, scope)));
+        }
+    }
     private static final String URI = "mongodb://127.0.0.1:27028/?directConnection=true";
     private final String database = "heist_test_" + UUID.randomUUID().toString().replace("-", "");
     private MongoStore store;
