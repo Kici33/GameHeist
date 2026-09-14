@@ -24,7 +24,7 @@ class PackBuilderTest {
     private SortedMap<String, byte[]> pack() throws IOException { return PackBuilder.assemble(Path.of(System.getProperty("pack.source"))); }
     @Test void buildsClosedAssetGraphWithAnimatedWorkLightAndNoVanillaOverrides() throws IOException {
         var files = pack();
-        assertEquals(9, files.keySet().stream().filter(p -> p.startsWith("assets/gameheist/items/")).count());
+        assertEquals(10, files.keySet().stream().filter(p -> p.startsWith("assets/gameheist/items/")).count());
         assertTrue(files.keySet().stream().noneMatch(p -> p.startsWith("assets/minecraft/")));
         assertTrue(files.containsKey("LICENSE.txt"));
         var light = ImageIO.read(new ByteArrayInputStream(files.get("assets/gameheist/textures/item/palette/pulse.png")));

@@ -9,6 +9,7 @@ import org.bukkit.inventory.ItemStack;
 public enum PackModel {
     CARBINE("carbine", Material.IRON_HOE),
     LOOT_BAG("loot_bag", Material.PAPER),
+    MEDKIT("medkit", Material.PAPER),
     DRILL_IDLE("drill_idle", Material.PAPER),
     DRILL_RUNNING("drill_running", Material.PAPER),
     DRILL_JAMMED("drill_jammed", Material.PAPER),

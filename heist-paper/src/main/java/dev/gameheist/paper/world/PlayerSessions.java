@@ -65,7 +65,10 @@ public final class PlayerSessions {
         });
         player.getInventory().setItem(0, gun);
         ItemStack medkit = new ItemStack(Material.PAPER);
-        medkit.editMeta(meta -> meta.displayName(Component.text("Medkit | Right click: heal 40 HP | One use")));
+        medkit.editMeta(meta -> {
+            meta.displayName(Component.text("Medkit | Right click: heal 40 HP | One use"));
+            if (customModels) meta.setItemModel(PackModel.MEDKIT.key());
+        });
         player.getInventory().setItem(1, medkit);
         player.getInventory().setHeldItemSlot(0);
         player.sendMessage(Component.text("Carbine: left click to fire, F to reload. Sneak + right click a downed teammate, then keep sneaking nearby to revive."));

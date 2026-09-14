@@ -1,4 +1,6 @@
-# Brasslock resource pack 1.1
+# Brasslock resource pack 1.2
+
+Version 1.2 adds the field medkit model in hotbar slot 2, with hand and inventory transforms. Install the new ZIP and update the hosted URL/SHA-1 together. Check that the case appears before use, disappears after healing, and the player's original inventory returns on exit. Without the pack, the named paper item remains the fallback.
 
 The pack supplies original cuboid models and generated 16-pixel textures for the carbine, loot bag, security terminal (active/disabled), extraction beacon, and drill (idle/running/jammed/complete). Dark metal, canvas, brass, and colored status panels share one palette. The running drill's lamp has a two-frame pulse. Labels and the existing HUD still communicate gameplay state alongside color.
 
@@ -8,7 +10,7 @@ Run `.\gradlew.bat resourcePack` on Windows or `bash ./gradlew resourcePack` on 
 
 Outputs in `build/resource-pack/`:
 
-- `gameheist-brasslock-1.1.zip`: client-installable pack with `pack.mcmeta` and `pack.png` at the archive root.
+- `gameheist-brasslock-1.2.zip`: client-installable pack with `pack.mcmeta` and `pack.png` at the archive root.
 - `.zip.sha1` and `.zip.sha256`: hashes of the exact archive bytes.
 - `server-config.yml`: configuration excerpt containing the generated SHA-1; supply the real HTTPS URL after upload.
 - `models-preview.png`: an isometric overview rendered from the source cuboids. It is not a Minecraft screenshot and does not validate in-game transforms or lighting.

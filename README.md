@@ -81,7 +81,7 @@ Combat contributions (damage dealt, damage taken, and revives) appear in the res
 
 ## Resource pack
 
-The original **Brasslock 1.1** resource pack includes a carbine, loot bag, security terminal, extraction beacon, four drill states, and six original sound effects with English/Polish subtitles. Build with `.\gradlew.bat resourcePack` (also included in `build`). The ZIP, hashes, configuration excerpt, and model overview are generated in `build/resource-pack/`. See [installation, sources, and verification](docs/resource-pack.md).
+The original **Brasslock 1.2** resource pack includes a carbine, medkit, loot bag, security terminal, extraction beacon, four drill states, and six original sound effects with English/Polish subtitles. Build with `.\gradlew.bat resourcePack` (also included in `build`). The ZIP, hashes, configuration excerpt, and model overview are generated in `build/resource-pack/`. See [installation, sources, and verification](docs/resource-pack.md).
 
 For local preview, install the ZIP in each client's resource-pack folder and set `resource-pack.preview-models: true` while keeping the development bypass on. To enforce the pack, host the ZIP at an HTTPS URL, set the bypass to `false`, and configure the URL, pack UUID, and generated SHA-1. Custom models then enable automatically. Failed, declined, or timed-out packs disconnect the player; merely accepting a pack does not permit admission. Default bypass mode with preview off keeps vanilla visuals available. Client rendering and hosted pack delivery still require live verification.
 

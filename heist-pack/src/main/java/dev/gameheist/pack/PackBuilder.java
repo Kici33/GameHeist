@@ -20,7 +20,7 @@ import javax.imageio.ImageIO;
 
 /** Offline pack compiler: original palette pixels + authored JSON, with no downloaded assets. */
 public final class PackBuilder {
-    public static final String ARCHIVE = "gameheist-brasslock-1.1.zip";
+    public static final String ARCHIVE = "gameheist-brasslock-1.2.zip";
     private static final String ROOT = "assets/gameheist/";
     private PackBuilder() { }
 
