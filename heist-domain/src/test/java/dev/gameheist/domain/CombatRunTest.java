@@ -8,6 +8,26 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CombatRunTest {
+    @Test void emptyTriggerReloadsOnceWithoutFiringOrExtendingTheTimer() {
+        var combat = combat();
+        assertFalse(combat.reloadEmpty(first));
+        for (int i = 0; i < CombatRun.MAGAZINE; i++) {
+            assertTrue(combat.fire(first, Optional.empty(), 1, true));
+            advance(300);
+        }
+        assertTrue(combat.reloadEmpty(first));
+        for (int i = 0; i < 19; i++) {
+            advance(100);
+            assertFalse(combat.reloadEmpty(first));
+            assertFalse(combat.canFire(first));
+        }
+        assertEquals(100, player(combat, first).reloadMillis());
+        advance(100);
+        assertFalse(combat.reloadEmpty(first));
+        assertEquals(CombatRun.MAGAZINE, player(combat, first).ammunition());
+        assertTrue(combat.canFire(first));
+        assertEquals(0, player(combat, first).stats().damageDealt());
+    }
     @Test void startingRevivePreservesElapsedReloadButCancelsUnfinishedReload() {
         for (long elapsed : List.of(1999L, 2000L)) {
             var combat = combat();

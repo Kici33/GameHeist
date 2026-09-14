@@ -148,6 +148,7 @@ public final class InstanceManager {
         checkThread(); return playerMatch(player).fire(player, guard, distance, clear);
     }
     public boolean reload(UUID player) { checkThread(); return playerMatch(player).reload(player); }
+    public boolean reloadEmpty(UUID player) { checkThread(); return playerMatch(player).reloadEmpty(player); }
     public boolean useMedkit(UUID player) { checkThread(); return playerMatch(player).useMedkit(player); }
     public boolean returnBag(UUID player) { checkThread(); return playerMatch(player).returnBag(player); }
     public boolean useMedkit(UUID helper, UUID target, double distance, boolean clear) {

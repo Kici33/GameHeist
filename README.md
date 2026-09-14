@@ -123,6 +123,8 @@ MongoDB writes use majority acknowledgement, profile revision comparisons, and u
 
 ## Player statistics
 
+Clicking the carbine with an empty magazine starts the normal two-second reload. Repeated clicks do not restart it or queue a shot. Manual F remains available for a partial magazine.
+
 While carrying loot, Shift+F returns the bag to its original marker for another crew member to collect. This restores movement speed and clears the cosmetic bag slot without securing loot or creating a dropped item. Plain F remains the carbine reload control.
 
 Medkits can also heal a living teammate: select slot 2 and right click them within three blocks with a clear line of sight. The helper spends their single charge to restore up to 40 HP to the recipient. Full-health targets do not consume it. Sneak-right-click on a downed teammate still starts the existing revive action and does not spend the medkit.

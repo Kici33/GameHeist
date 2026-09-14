@@ -134,6 +134,7 @@ public final class Match {
         return fired;
     }
     public boolean reload(UUID player) { return requireCombat().reload(player); }
+    public boolean reloadEmpty(UUID player) { return requireCombat().reloadEmpty(player); }
     public boolean useMedkit(UUID player) { return requireCombat().useMedkit(player); }
     public boolean useMedkit(UUID helper, UUID target, double distance, boolean clear) {
         return requireCombat().useMedkit(helper, target, distance, clear);

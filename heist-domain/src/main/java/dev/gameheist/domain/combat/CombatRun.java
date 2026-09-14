@@ -55,6 +55,12 @@ public final class CombatRun {
         cancelRevive(player);
         return true;
     }
+    /** Empty-trigger recovery shares the manual reload timer and never restarts a pending reload. */
+    public boolean reloadEmpty(UUID id) {
+        Fighter player = require(id);
+        tickReload(player);
+        return player.ammunition == 0 && reload(id);
+    }
     /** One self-heal per run; failed uses never consume the charge. */
     public boolean useMedkit(UUID id) {
         return useMedkit(id, id, 0, true);

@@ -160,7 +160,15 @@ public final class CombatController implements Listener {
     private void fire(Player player) {
         var instance = combatInstance(player);
         if (instance == null || !instances.activePlayer(player.getUniqueId()) || player.getInventory().getHeldItemSlot() != 0
-                || player.getInventory().getItemInMainHand().getType() != Material.IRON_HOE || !instances.canFire(player.getUniqueId())) return;
+                || player.getInventory().getItemInMainHand().getType() != Material.IRON_HOE) return;
+        if (!instances.canFire(player.getUniqueId())) {
+            if (!instances.snapshot(instance.match().id()).match().phase().gameplay()) return;
+            if (instances.reloadEmpty(player.getUniqueId())) {
+                player.sendMessage(Component.text("Empty magazine — reloading for 2 seconds.", NamedTextColor.AQUA));
+                audio.emit(instance, player.getLocation(), dev.gameheist.paper.pack.HeistAudio.Cue.CARBINE_RELOAD);
+            }
+            return;
+        }
         var eye = player.getEyeLocation();
         var direction = eye.getDirection();
         var block = player.getWorld().rayTraceBlocks(eye, direction, CombatRun.SHOT_RANGE, FluidCollisionMode.NEVER, true);
