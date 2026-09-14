@@ -1,5 +1,5 @@
 rootProject.name = "GameHeist"
-include("heist-domain", "heist-runtime", "heist-mongo", "heist-paper")
+include("heist-domain", "heist-runtime", "heist-mongo", "heist-paper", "heist-pack")
 
 dependencyResolutionManagement {
     repositories {

@@ -56,7 +56,7 @@ public final class HeistPlugin extends JavaPlugin {
                 throw new IllegalArgumentException("Fallback must be an existing non-instance world");
             }
             packs = new ResourcePackGate(this);
-            var players = new PlayerSessions(fallback);
+            var players = new PlayerSessions(fallback, packs.modelsEnabled());
             worlds = new PaperWorldGateway(players, getLogger());
             var results = new InMemoryResultRepository(100);
             ProfileRepository profileRepository;
@@ -75,9 +75,10 @@ public final class HeistPlugin extends JavaPlugin {
             instances = new InstanceManager(arenas, worlds, resultRepository, Clock.systemUTC(), LoadoutCatalog.starter(),
                     getConfig().getInt("instances.maximum"));
             drain = new DrainController(instances, profiles, worlds::cleanupHealthy);
-            var gameplay = new HeistGameplay(instances, arenas, players);
-            var guards = new GuardController(instances, arenas, players, getLogger(), profiles::soundEnabled);
-            var combat = new CombatController(instances, players, guards, getLogger(), profiles::soundEnabled);
+            var audio = new dev.gameheist.paper.pack.HeistAudio(players, profiles::soundEnabled);
+            var gameplay = new HeistGameplay(instances, arenas, players, audio);
+            var guards = new GuardController(instances, arenas, players, getLogger());
+            var combat = new CombatController(instances, players, guards, getLogger(), audio);
             var statistics = new StatisticsView(storage != null ? storage : results, storage != null);
             var command = Objects.requireNonNull(getCommand("heist"));
             var executor = new HeistCommand(instances, arenas, packs, players, results, getLogger(), guards, profiles, storage != null, statistics, drain);

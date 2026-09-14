@@ -22,14 +22,14 @@ public final class CombatController implements Listener {
     private final PlayerSessions players;
     private final GuardController guards;
     private final Logger logger;
-    private final java.util.function.Predicate<UUID> soundEnabled;
+    private final dev.gameheist.paper.pack.HeistAudio audio;
     public CombatController(InstanceManager instances, PlayerSessions players, GuardController guards, Logger logger,
-                            java.util.function.Predicate<UUID> soundEnabled) {
+                            dev.gameheist.paper.pack.HeistAudio audio) {
         this.instances = instances;
         this.players = players;
         this.guards = guards;
         this.logger = logger;
-        this.soundEnabled = soundEnabled;
+        this.audio = audio;
     }
     public void tick() {
         for (var instance : instances.all()) {
@@ -101,6 +101,7 @@ public final class CombatController implements Listener {
         var instance = combatInstance(event.getPlayer());
         if (instance != null && instances.reload(event.getPlayer().getUniqueId())) {
             event.getPlayer().sendMessage(Component.text("Reloading — 2 seconds", NamedTextColor.AQUA));
+            audio.emit(instance, event.getPlayer().getLocation(), dev.gameheist.paper.pack.HeistAudio.Cue.CARBINE_RELOAD);
         }
     }
     @EventHandler public void onRevive(PlayerInteractEntityEvent event) {
@@ -140,7 +141,7 @@ public final class CombatController implements Listener {
         }
         if (instances.fire(player.getUniqueId(), Optional.ofNullable(hit), closest, true)) {
             player.sendActionBar(Component.text(hit == null ? "Carbine fired" : "Hit " + hit, NamedTextColor.GRAY));
-            if (soundEnabled.test(player.getUniqueId())) player.playSound(player.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_BLAST, 0.4f, 1.8f);
+            audio.emit(instance, player.getLocation(), dev.gameheist.paper.pack.HeistAudio.Cue.CARBINE_FIRE);
             // Remove defeated guards immediately so a second player's shot cannot hit their old body.
             var state = instances.combatSnapshot(instance.match().id()).orElseThrow();
             if (hit != null && state.guards().getOrDefault(hit, 0) == 0) guards.actors(instance.match().id()).get(hit).release();

@@ -82,6 +82,8 @@ Acceptance target: two players trigger the alarm, use cover, fight the small wav
 
 ## Resource pack
 
+Use the [Brasslock pack setup and visual checks](resource-pack.md) for model states, carried bags, inventory restoration, and local preview. The following checks cover required download/application:
+
 - Host a real test pack, configure ID/hash/HTTPS URL, disable development bypass, restart.
 - With a clean client cache, confirm admission is blocked until SUCCESSFULLY_LOADED.
 - Try decline, broken download, failed pack reload, timeout, and cached success.

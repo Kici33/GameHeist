@@ -7,6 +7,9 @@ instances:
 resource-pack:
   # Explicit local-development exception; disable once a real pack is hosted.
   development-bypass: true
+  # Enable only after manually installing the built pack on every local test client.
+  # Enforced pack mode enables the models automatically.
+  preview-models: false
   id: '873f1299-715e-430a-ae57-a43b96f20e92'
   url: ''
   sha1: ''

@@ -1,5 +1,12 @@
 plugins { base }
 
+val resourcePack by tasks.registering {
+    group = "build"
+    description = "Build the GameHeist client resource pack and checksums."
+    dependsOn(":heist-pack:resourcePack")
+}
+tasks.assemble { dependsOn(resourcePack) }
+
 allprojects {
     group = "dev.gameheist"
     version = "0.1.0-SNAPSHOT"

@@ -4,6 +4,9 @@ import dev.gameheist.domain.arena.*;
 import dev.gameheist.domain.match.MatchPhase;
 import dev.gameheist.domain.objective.*;
 import dev.gameheist.paper.world.PlayerSessions;
+import dev.gameheist.paper.world.HeistProps;
+import dev.gameheist.paper.pack.HeistAudio;
+import dev.gameheist.paper.pack.AudioTimeline;
 import dev.gameheist.runtime.arena.ArenaRegistry;
 import dev.gameheist.runtime.instance.*;
 import net.kyori.adventure.bossbar.BossBar;
@@ -23,13 +26,15 @@ public final class HeistGameplay {
     private final InstanceManager instances;
     private final ArenaRegistry arenas;
     private final PlayerSessions players;
+    private final HeistAudio audio;
     private final Map<UUID, Presentation> presentations = new HashMap<>();
     private long ticks;
 
-    public HeistGameplay(InstanceManager instances, ArenaRegistry arenas, PlayerSessions players) {
+    public HeistGameplay(InstanceManager instances, ArenaRegistry arenas, PlayerSessions players, HeistAudio audio) {
         this.instances = instances;
         this.arenas = arenas;
         this.players = players;
+        this.audio = audio;
     }
 
     public void interact(PlayerInteractEvent event) {
@@ -79,7 +84,28 @@ public final class HeistGameplay {
             instances.updateHeist(instance.match().id(), present);
             var current = instances.snapshot(instance.match().id());
             var heist = instances.heistSnapshot(instance.match().id()).orElseThrow();
+            var drill = definition.orElseThrow().drill();
+            World soundWorld = Bukkit.getWorld(current.worldName());
+            for (var cue : view.audio.update(ticks, current.match().phase().gameplay() && current.match().result().isEmpty(),
+                    current.match().alarm() == dev.gameheist.domain.match.AlarmState.LOUD,
+                    heist.drillStarted(), heist.jammed(), heist.drillComplete())) {
+                if (soundWorld != null) audio.emit(current, cue == HeistAudio.Cue.ALARM ? null
+                        : new Location(soundWorld, drill.x() + .5, drill.y() + .5, drill.z() + .5), cue);
+            }
             updateBags(instance, heist, view);
+            if (players.customModels() && !view.propsFailed) {
+                World world = Bukkit.getWorld(instance.worldName());
+                if (world != null) {
+                    try {
+                        if (view.props == null) view.props = new HeistProps(world, definition.orElseThrow());
+                        view.props.update(heist);
+                    } catch (RuntimeException failure) {
+                        view.propsFailed = true;
+                        if (view.props != null) view.props.close();
+                        Bukkit.getLogger().warning("GameHeist model props disabled for " + instance.match().id() + ": " + failure);
+                    }
+                }
+            }
             if (current.match().result().isPresent()) {
                 announceResult(current, view);
                 continue;
@@ -95,6 +121,7 @@ public final class HeistGameplay {
         var created = new Presentation();
         presentations.put(id, created);
         instances.own(id, () -> {
+            if (created.props != null) created.props.close();
             announceResult(instances.snapshot(id), created);
             for (UUID playerId : created.viewers) {
                 Player player = Bukkit.getPlayer(playerId);
@@ -183,11 +210,14 @@ public final class HeistGameplay {
     }
     private static long seconds(long millis) { return (millis + 999) / 1000; }
     private static final class Presentation {
+        private final AudioTimeline audio = new AudioTimeline();
         private final BossBar bar = BossBar.bossBar(Component.text("Heist"), 0, BossBar.Color.BLUE, BossBar.Overlay.PROGRESS);
         private final Set<UUID> viewers = new HashSet<>();
         private final Set<BlockPosition> hiddenBags = new HashSet<>();
         private final Map<UUID, Long> lastInteraction = new HashMap<>();
         private MatchPhase lastPhase;
         private boolean resultAnnounced;
+        private HeistProps props;
+        private boolean propsFailed;
     }
 }

@@ -4,15 +4,21 @@ import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import net.kyori.adventure.text.Component;
+import dev.gameheist.paper.pack.PackModel;
 import java.util.*;
 
 /** Owns practice movement and, in combat arenas, a temporary inventory. Native health is untouched. */
 public final class PlayerSessions {
     private final World fallback;
+    private final boolean customModels;
     private final Map<UUID, SavedState> saved = new HashMap<>();
     private final Set<UUID> transferring = new HashSet<>();
     private final Map<UUID, InventoryState> inventories = new HashMap<>();
-    public PlayerSessions(World fallback) { this.fallback = Objects.requireNonNull(fallback); }
+    public PlayerSessions(World fallback, boolean customModels) {
+        this.fallback = Objects.requireNonNull(fallback);
+        this.customModels = customModels;
+    }
+    public boolean customModels() { return customModels; }
 
     public void enter(Player player, Location destination) {
         if (saved.containsKey(player.getUniqueId())) throw new IllegalStateException("Player already has a saved session");
@@ -55,6 +61,7 @@ public final class PlayerSessions {
         gun.editMeta(meta -> {
             meta.displayName(Component.text("Carbine | Left click: fire | F: reload"));
             meta.setUnbreakable(true);
+            if (customModels) meta.setItemModel(PackModel.CARBINE.key());
         });
         player.getInventory().setItem(0, gun);
         player.getInventory().setHeldItemSlot(0);
@@ -65,6 +72,13 @@ public final class PlayerSessions {
         if (state == null) return;
         float speed = carrying ? state.walkSpeed() * 0.8f : state.walkSpeed();
         if (player.getWalkSpeed() != speed) player.setWalkSpeed(speed);
+        if (customModels && inventories.containsKey(player.getUniqueId())) {
+            // Slot 9 is owned by the temporary combat inventory; loot remains authoritative in HeistRun.
+            var visual = player.getInventory().getItem(8);
+            if (carrying && (visual == null || !visual.hasItemMeta() || !PackModel.LOOT_BAG.key().equals(visual.getItemMeta().getItemModel()))) {
+                player.getInventory().setItem(8, PackModel.LOOT_BAG.item("Loot bag | Deliver to extraction"));
+            } else if (!carrying && visual != null) player.getInventory().setItem(8, null);
+        }
     }
     public boolean transferring(UUID playerId) { return transferring.contains(playerId); }
     private boolean transfer(Player player, Location destination) {

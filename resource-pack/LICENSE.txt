@@ -1,0 +1,17 @@
+GameHeist Brasslock resource pack
+Copyright (c) 2026 GameHeist contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this resource pack and associated source files, to use, copy, modify,
+merge, publish, distribute, sublicense, and/or sell copies, subject to
+including this copyright and permission notice in all copies or substantial
+portions of the resource pack.
+
+THE RESOURCE PACK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS
+OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY.
+
+The cuboid models, generated pixel textures and pack icon are original
+GameHeist assets. No Minecraft textures, third-party models, fonts or sound
+recordings are included. Minecraft is a trademark of Mojang Studios.

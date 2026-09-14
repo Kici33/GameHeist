@@ -60,3 +60,7 @@ jobs:
         with:
           name: test-reports
           path: '**/build/reports/tests/'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GameHeist-resource-pack
+          path: build/resource-pack/

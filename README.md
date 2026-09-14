@@ -62,7 +62,7 @@ Guard name labels show state and suspicion for this development map. `/heist gua
 
 `/heist alarm <uuid>` switches to loud state; `/heist stop <uuid>` aborts a session. `/heist drain` closes admission and profile edits, and reports when acknowledged work and cleanup make shutdown safe. See the [drain protocol](docs/draining.md). Raise `instances.maximum` to two in a local test server to exercise isolation; the intended deployed architecture remains one match per process.
 
-All current sessions are practice sessions: **no rewards or durable player progression**. Combat is enabled only by the new version 4 manifest. Physical interactions validate crew membership, game phase, proximity, and a server-side block ray trace. Offhand duplicate events are ignored. Bags are authoritative logical objects rather than inventory items; a real bag-slot visual is still future work. A player disconnect currently aborts the crew's practice session. The GDD's reconnect flow is not implemented yet.
+All current sessions are practice sessions: **no rewards or durable player progression**. Combat is enabled only by the new version 4 manifest. Physical interactions validate crew membership, game phase, proximity, and a server-side block ray trace. Offhand duplicate events are ignored. Bags remain authoritative logical objects; with the custom pack enabled, combat crews also get a cosmetic bag in hotbar slot 9 while carrying loot. A player disconnect currently aborts the crew's practice session. The GDD's reconnect flow is not implemented yet.
 
 `graybox:1` remains the original admin-driven lifecycle arena; version 2 keeps the unguarded physical loop; version 3 keeps damage-free guard testing. `/heist complete` works only on version 1, preventing physical state desynchronization. All four versioned manifests are installed without overwriting existing files. Restart after updating the plugin; do not hot-reload it.
 
@@ -81,9 +81,9 @@ Combat contributions (damage dealt, damage taken, and revives) appear in the res
 
 ## Resource pack
 
-The bundled configuration explicitly enables `resource-pack.development-bypass` so a local graybox can be tested before any artwork exists. Startup logs warn about this.
+The original **Brasslock 1.1** resource pack includes a carbine, loot bag, security terminal, extraction beacon, four drill states, and six original sound effects with English/Polish subtitles. Build with `.\gradlew.bat resourcePack` (also included in `build`). The ZIP, hashes, configuration excerpt, and model overview are generated in `build/resource-pack/`. See [installation, sources, and verification](docs/resource-pack.md).
 
-To enforce a real pack, set the bypass to `false`, configure an HTTPS archive URL, pack UUID, and the archive's 40-character SHA-1 hash, then restart. Failed, declined, or timed-out packs cause a clear disconnect. Merely accepting a pack does not permit admission. No textures or pack archive are claimed to exist yet.
+For local preview, install the ZIP in each client's resource-pack folder and set `resource-pack.preview-models: true` while keeping the development bypass on. To enforce the pack, host the ZIP at an HTTPS URL, set the bypass to `false`, and configure the URL, pack UUID, and generated SHA-1. Custom models then enable automatically. Failed, declined, or timed-out packs disconnect the player; merely accepting a pack does not permit admission. Default bypass mode with preview off keeps vanilla visuals available. Client rendering and hosted pack delivery still require live verification.
 
 ## Structure
 
@@ -93,12 +93,13 @@ To enforce a real pack, set the bypass to `false`, configure an HTTPS archive UR
 | `heist-runtime` | Instance ownership, world/persistence boundaries, development adapters, health endpoint |
 | `heist-mongo` | Versioned profile/result documents, optimistic concurrency, bounded database workers |
 | `heist-paper` | Server-thread adapter, plugin lifecycle, commands, configuration, world/player handling |
+| `heist-pack` | Offline resource-pack builder, original textures, validation, and model overview |
 
 See [architecture and extension points](docs/architecture.md), [manual verification](docs/manual-verification.md), and [next implementation slices](docs/next-steps.md).
 
 ## Current operational limits
 
-Redis, BungeeCord/lobby routing, Agones allocation, additional weapons/gadgets, sustained reinforcement pressure, finished arenas, and custom assets are future work. Guards use native-mob placeholders with vanilla goals removed and vanilla damage disabled; version 4 applies custom combat rules. Do not expose this practice adapter as a production network.
+Redis, BungeeCord/lobby routing, Agones allocation, additional weapons/gadgets, sustained reinforcement pressure, finished arenas, custom NPC models, and ambient audio are future work. Guards use native-mob placeholders with vanilla goals removed and vanilla damage disabled; version 4 applies custom combat rules. Do not expose this practice adapter as a production network.
 
 With `storage.mode: mongodb`, acknowledged profiles/results persist in MongoDB. The operator history shows only the last 100 acknowledged results from this server run. Memory mode loses all data at restart. Neither mode is a reward ledger. Health endpoints provide process/admission information, not historical metrics. The health listener defaults to loopback; binding it to a pod interface must be accompanied by network restrictions.
 
@@ -113,7 +114,7 @@ Players load their profile on connection. `/heist profile` shows the acknowledge
 - `/heist preset 2 SCOUT` creates or replaces slot 2 and selects it. Missing earlier slots use the Technician starter loadout.
 - `/heist preset 1` selects an existing slot.
 - `/heist join <uuid>` captures the selected saved loadout. The optional role argument remains a practice-only override and does not edit the profile.
-- `/heist settings sound off` disables custom guard alarm and carbine sounds. It does not mute vanilla Minecraft sounds.
+- `/heist settings sound off` disables plugin alarm, carbine, and drill effects, including their fallback sounds. It does not mute unrelated vanilla Minecraft sounds.
 - `/heist settings particles off` saves a reduced-particles preference for future effects; no custom particle effects currently consume it. Language remains English. Equipment uses the starter carbine/medkit catalog: the carbine functions in combat arenas, while the medkit remains a placeholder.
 
 Storage defaults to explicit development memory mode. For persistence, set `storage.mode: mongodb` and `storage.database: gameheist` in the plugin configuration, and supply `HEIST_MONGODB_URI` in the server process environment. Keep credentials in deployment secrets, never in tracked configuration. Restart after changing storage mode. Existing memory data is not migrated. MongoDB failure never switches storage back to memory.

@@ -1,0 +1,56 @@
+{
+  "carbine_fire": {
+    "subtitle": "subtitles.gameheist.carbine_fire",
+    "sounds": [
+      {
+        "name": "gameheist:carbine_fire",
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "carbine_reload": {
+    "subtitle": "subtitles.gameheist.carbine_reload",
+    "sounds": [
+      {
+        "name": "gameheist:carbine_reload",
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "alarm": {
+    "subtitle": "subtitles.gameheist.alarm",
+    "sounds": [
+      {
+        "name": "gameheist:alarm",
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "drill_work": {
+    "subtitle": "subtitles.gameheist.drill_work",
+    "sounds": [
+      {
+        "name": "gameheist:drill_work",
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "drill_jam": {
+    "subtitle": "subtitles.gameheist.drill_jam",
+    "sounds": [
+      {
+        "name": "gameheist:drill_jam",
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "drill_complete": {
+    "subtitle": "subtitles.gameheist.drill_complete",
+    "sounds": [
+      {
+        "name": "gameheist:drill_complete",
+        "attenuation_distance": 24
+      }
+    ]
+  }
+}

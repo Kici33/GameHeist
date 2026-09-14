@@ -26,7 +26,7 @@ public final class GrayboxScene {
         for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) {
             world.getBlockAt(position.x() + x, position.y() - 1, position.z() + z).setType(floor, false);
         }
-        world.spawn(new Location(world, position.x() + 0.5, position.y() + 2, position.z() + 0.5),
+        world.spawn(new Location(world, position.x() + 0.5, position.y() + 2.8, position.z() + 0.5),
                 TextDisplay.class, display -> {
                     display.text(Component.text(label, NamedTextColor.WHITE));
                     display.setBillboard(Display.Billboard.CENTER);

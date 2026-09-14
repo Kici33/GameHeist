@@ -44,6 +44,8 @@ public final class ResourcePackGate implements Listener {
     }
 
     public boolean ready(Player player) { return bypass || loaded.contains(player.getUniqueId()); }
+    /** Explicit preview switch supports manually installed packs during local development. */
+    public boolean modelsEnabled() { return !bypass || plugin.getConfig().getBoolean("resource-pack.preview-models", false); }
     public void request(Player player) {
         if (bypass) return;
         UUID id = player.getUniqueId();

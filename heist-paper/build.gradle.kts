@@ -1,4 +1,9 @@
 plugins { `java-library` }
+
+tasks.test {
+    systemProperty("pack.source", rootProject.layout.projectDirectory.dir("resource-pack").asFile.absolutePath)
+    inputs.dir(rootProject.layout.projectDirectory.dir("resource-pack"))
+}
 dependencies {
     implementation(project(":heist-runtime"))
     implementation(project(":heist-mongo"))

@@ -21,17 +21,15 @@ public final class GuardController implements Listener {
     private final ArenaRegistry arenas;
     private final PlayerSessions players;
     private final Logger logger;
-    private final java.util.function.Predicate<UUID> soundEnabled;
     private final Map<UUID, GuardSquad> squads = new HashMap<>();
     private final Set<UUID> ownedEntities = new HashSet<>();
     private final Map<UUID, Map<String, PaperGuardActor>> actors = new HashMap<>();
 
-    public GuardController(InstanceManager instances, ArenaRegistry arenas, PlayerSessions players, Logger logger, java.util.function.Predicate<UUID> soundEnabled) {
+    public GuardController(InstanceManager instances, ArenaRegistry arenas, PlayerSessions players, Logger logger) {
         this.instances = instances;
         this.arenas = arenas;
         this.players = players;
         this.logger = logger;
-        this.soundEnabled = soundEnabled;
     }
 
     public void tick() {
@@ -132,7 +130,6 @@ public final class GuardController implements Listener {
             Player player = Bukkit.getPlayer(playerId);
             if (player != null) {
                 player.sendMessage(Component.text("ALARM! A guard called for help. Your objective progress is preserved.", NamedTextColor.RED));
-                if (soundEnabled.test(player.getUniqueId())) player.playSound(player.getLocation(), Sound.BLOCK_BELL_USE, 0.8f, 0.6f);
             }
         }
     }
