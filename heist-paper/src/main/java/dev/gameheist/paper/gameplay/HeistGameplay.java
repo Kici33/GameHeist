@@ -130,6 +130,8 @@ public final class HeistGameplay {
             for (UUID playerId : created.viewers) {
                 Player player = Bukkit.getPlayer(playerId);
                 if (player != null) player.hideBossBar(created.bar);
+                BossBar crewBar = created.crewBars.get(playerId);
+                if (player != null && crewBar != null) player.hideBossBar(crewBar);
             }
             presentations.remove(id);
         });
@@ -171,9 +173,27 @@ public final class HeistGameplay {
         view.bar.color(state.jammed() ? BossBar.Color.RED : state.extracting() ? BossBar.Color.GREEN : BossBar.Color.BLUE);
         view.bar.progress(Math.min(1f, state.securedBags() / (float) state.requiredBags()));
         var combat = instances.combatSnapshot(instance.match().id());
+        List<CrewStatus.Member> crew = new ArrayList<>();
+        if (combat.isPresent()) {
+            combat.orElseThrow().players().forEach((id, fighter) -> {
+                Player teammate = Bukkit.getPlayer(id);
+                if (teammate != null) view.crewNames.put(id, teammate.getName());
+                boolean available = teammate != null && teammate.isOnline() && players.contains(id)
+                        && teammate.getWorld().getName().equals(instance.worldName()) && !teammate.isDead()
+                        && teammate.getGameMode() == GameMode.ADVENTURE;
+                crew.add(new CrewStatus.Member(id, view.crewNames.getOrDefault(id, "Teammate"), fighter.health(), available));
+            });
+        }
         for (UUID playerId : instance.match().participants().keySet()) {
             Player player = Bukkit.getPlayer(playerId);
-            if (player == null || !player.getWorld().getName().equals(instance.worldName())) continue;
+            if (player == null) continue;
+            if (!players.contains(playerId) || !player.getWorld().getName().equals(instance.worldName())) {
+                player.hideBossBar(view.bar);
+                BossBar oldCrewBar = view.crewBars.remove(playerId);
+                if (oldCrewBar != null) player.hideBossBar(oldCrewBar);
+                view.viewers.remove(playerId);
+                continue;
+            }
             if (view.viewers.add(playerId)) player.showBossBar(view.bar);
             String status = state.carriedBags().containsKey(playerId) ? "Carrying a bag — right click GREEN to secure it" : instruction;
             if (combat.isPresent()) {
@@ -182,7 +202,19 @@ public final class HeistGameplay {
                 else if (fighter.reviving().isPresent()) status = "Reviving: " + seconds(fighter.reviveMillis()) + "s — keep sneaking nearby";
                 else status = "HP " + fighter.health() + "/100 · " + (fighter.reloadMillis() > 0
                         ? "Reload " + seconds(fighter.reloadMillis()) + "s" : "Ammo " + fighter.ammunition() + "/12 · F reload")
-                        + (fighter.medkitAvailable() ? " · Medkit: slot 2" : " · Medkit used") + " · " + status;
+                        + (fighter.medkitAvailable() ? " · Medkit: slot 2" : " · Medkit used")
+                        + (state.carriedBags().containsKey(playerId) ? " · BAG → GREEN" : "");
+            }
+            String crewStatus = CrewStatus.format(playerId, crew);
+            if (!crewStatus.isEmpty()) {
+                BossBar crewBar = view.crewBars.computeIfAbsent(playerId, ignored -> {
+                    var bar = BossBar.bossBar(Component.text(crewStatus), 1, BossBar.Color.GREEN, BossBar.Overlay.PROGRESS);
+                    player.showBossBar(bar);
+                    return bar;
+                });
+                crewBar.name(Component.text(crewStatus));
+                crewBar.progress(CrewStatus.healthFraction(playerId, crew));
+                crewBar.color(CrewStatus.needsRescue(playerId, crew) ? BossBar.Color.RED : BossBar.Color.GREEN);
             }
             player.sendActionBar(Component.text(status, NamedTextColor.YELLOW));
             if (view.lastPhase != instance.match().phase()) {
@@ -216,6 +248,8 @@ public final class HeistGameplay {
     private static long seconds(long millis) { return (millis + 999) / 1000; }
     private static final class Presentation {
         private final AudioTimeline audio = new AudioTimeline();
+        private final Map<UUID, String> crewNames = new HashMap<>();
+        private final Map<UUID, BossBar> crewBars = new HashMap<>();
         private final BossBar bar = BossBar.bossBar(Component.text("Heist"), 0, BossBar.Color.BLUE, BossBar.Overlay.PROGRESS);
         private final Set<UUID> viewers = new HashSet<>();
         private final Set<BlockPosition> hiddenBags = new HashSet<>();

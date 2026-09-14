@@ -121,13 +121,24 @@ public final class CombatController implements Listener {
         Player helper = event.getPlayer();
         if (!players.contains(helper.getUniqueId())) return;
         event.setCancelled(true);
-        if (event.getHand() != EquipmentSlot.HAND || !helper.isSneaking() || !(event.getRightClicked() instanceof Player target)) return;
+        if (event.getHand() != EquipmentSlot.HAND || !(event.getRightClicked() instanceof Player target)) return;
         var instance = combatInstance(helper);
         if (instance == null || present(target.getUniqueId(), instance) == null) return;
         // Verify the selected player is actually under the server-side eye ray, with no intervening blocks.
         var trace = helper.getWorld().rayTrace(helper.getEyeLocation(), helper.getEyeLocation().getDirection(),
                 CombatRun.REVIVE_RANGE, FluidCollisionMode.NEVER, true, 0.1, entity -> entity instanceof Player && !entity.equals(helper));
         if (trace == null || !target.equals(trace.getHitEntity())) return;
+        if (helper.getInventory().getHeldItemSlot() == 1 && helper.getInventory().getItemInMainHand().getType() == Material.PAPER
+                && instances.activePlayer(target.getUniqueId())) {
+            if (instances.useMedkit(helper.getUniqueId(), target.getUniqueId(),
+                    helper.getLocation().distance(target.getLocation()), helper.hasLineOfSight(target))) {
+                helper.getInventory().setItem(1, null);
+                helper.sendMessage(Component.text("Medkit used on " + target.getName() + ".", NamedTextColor.GREEN));
+                target.sendMessage(Component.text(helper.getName() + " healed you for up to 40 HP.", NamedTextColor.GREEN));
+            } else helper.sendActionBar(Component.text("Medkit unavailable or teammate already at full HP.", NamedTextColor.YELLOW));
+            return;
+        }
+        if (!helper.isSneaking()) return;
         if (instances.beginRevive(helper.getUniqueId(), target.getUniqueId(), helper.getLocation().distance(target.getLocation()), helper.hasLineOfSight(target))) {
             helper.sendMessage(Component.text("Reviving — keep sneaking within three blocks. Damage interrupts.", NamedTextColor.AQUA));
         }

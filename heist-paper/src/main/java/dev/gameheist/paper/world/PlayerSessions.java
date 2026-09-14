@@ -72,7 +72,7 @@ public final class PlayerSessions {
         player.getInventory().setItem(1, medkit);
         player.getInventory().setHeldItemSlot(0);
         player.sendMessage(Component.text("Carbine: left click to fire, F to reload. Sneak + right click a downed teammate, then keep sneaking nearby to revive."));
-        player.sendMessage(Component.text("Slot 2: medkit. Right click to restore 40 HP once per heist."));
+        player.sendMessage(Component.text("Slot 2: medkit. Right click to heal yourself, or click a nearby teammate to heal them. One use, up to 40 HP."));
     }
     public void carrying(Player player, boolean carrying) {
         SavedState state = saved.get(player.getUniqueId());

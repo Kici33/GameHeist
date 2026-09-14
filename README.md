@@ -123,6 +123,10 @@ MongoDB writes use majority acknowledgement, profile revision comparisons, and u
 
 ## Player statistics
 
+Medkits can also heal a living teammate: select slot 2 and right click them within three blocks with a clear line of sight. The helper spends their single charge to restore up to 40 HP to the recipient. Full-health targets do not consume it. Sneak-right-click on a downed teammate still starts the existing revive action and does not spend the medkit.
+
+Combat HUD shows teammates in a separate boss bar below the objective. Its fill is their average available logical HP (absent members contribute zero). Downed teammates appear first as `DOWN` and turn the bar red; unavailable teammates show `AWAY`. The bar omits your own entry and is absent in solo play. Personal health, ammo, medkit, and bag status remain on the action bar; the objective stays on its own boss bar. Names and crew bars are owned by the active match and removed during cleanup.
+
 Use `/heist stats graybox 3 1` to view your solo practice results for graybox version 3, or replace the final argument with your crew size (1–4). This command currently queries NORMAL difficulty, matching the practice creation command. Historic arena versions remain queryable even if their manifests are no longer installed.
 
 Totals include wins, gameplay losses, aborted runs, stealth wins, and crew-secured bags. Aborts are separate from gameplay losses. Bags describe the whole crew's secured total across recorded outcomes, including aborts; they are not personal bag contributions. Statistics include only saved terminal results, so an active or unacknowledged run does not appear yet.

@@ -56,9 +56,14 @@ public final class CombatRun {
     }
     /** One self-heal per run; failed uses never consume the charge. */
     public boolean useMedkit(UUID id) {
-        Fighter player = require(id);
-        if (!player.medkit || player.health == 0 || player.health == 100) return false;
-        player.health = Math.min(100, player.health + 40);
+        return useMedkit(id, id, 0, true);
+    }
+    /** The helper spends their charge; the recipient's inventory and combat actions remain untouched. */
+    public boolean useMedkit(UUID helper, UUID target, double distance, boolean clear) {
+        Fighter player = require(helper), recipient = require(target);
+        if (!player.medkit || player.health == 0 || recipient.health == 0 || recipient.health == 100
+                || !clear || !inRange(distance, REVIVE_RANGE)) return false;
+        recipient.health = Math.min(100, recipient.health + 40);
         player.medkit = false;
         player.reloadAt = null;
         cancelRevive(player);

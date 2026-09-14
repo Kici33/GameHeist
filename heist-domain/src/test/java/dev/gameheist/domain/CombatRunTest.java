@@ -8,6 +8,31 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CombatRunTest {
+    @Test void medkitCanHealCrewButSpendsOnlyHelpersCharge() {
+        var combat = combat();
+        for (int i = 0; i < 6; i++) hit(combat, second);
+        assertTrue(combat.useMedkit(first, second, 3, true));
+        assertEquals(80, player(combat, second).health());
+        assertEquals(100, player(combat, first).health());
+        assertFalse(player(combat, first).medkitAvailable());
+        assertTrue(player(combat, second).medkitAvailable());
+        assertFalse(combat.useMedkit(first, second, 3, true));
+        assertEquals(60, player(combat, second).stats().damageTaken());
+    }
+    @Test void invalidCrewHealingNeverConsumesCharge() {
+        var combat = combat();
+        assertFalse(combat.useMedkit(first, second, 1, true));
+        hit(combat, second);
+        for (double distance : List.of(-1d, 3.01d, Double.NaN, Double.POSITIVE_INFINITY))
+            assertFalse(combat.useMedkit(first, second, distance, true));
+        assertFalse(combat.useMedkit(first, second, 1, false));
+        assertThrows(IllegalArgumentException.class, () -> combat.useMedkit(first, UUID.randomUUID(), 1, true));
+        assertTrue(player(combat, first).medkitAvailable());
+        down(combat, third);
+        assertFalse(combat.useMedkit(first, third, 1, true));
+        assertFalse(combat.useMedkit(third, second, 1, true));
+        assertTrue(player(combat, third).medkitAvailable());
+    }
     @Test void medkitIsPersonalSingleUseAndClampsHealth() {
         var combat = combat();
         assertFalse(combat.useMedkit(first));
