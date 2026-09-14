@@ -23,13 +23,15 @@ public final class CombatController implements Listener {
     private final GuardController guards;
     private final Logger logger;
     private final dev.gameheist.paper.pack.HeistAudio audio;
+    private final dev.gameheist.paper.gameplay.HeistGameplay gameplay;
     public CombatController(InstanceManager instances, PlayerSessions players, GuardController guards, Logger logger,
-                            dev.gameheist.paper.pack.HeistAudio audio) {
+                            dev.gameheist.paper.pack.HeistAudio audio, dev.gameheist.paper.gameplay.HeistGameplay gameplay) {
         this.instances = instances;
         this.players = players;
         this.guards = guards;
         this.logger = logger;
         this.audio = audio;
+        this.gameplay = gameplay;
     }
     public void tick() {
         for (var instance : instances.all()) {
@@ -185,11 +187,13 @@ public final class CombatController implements Listener {
             double distance = trace.getHitPosition().distance(eye.toVector());
             if (distance < closest) { closest = distance; hit = entry.getKey(); }
         }
+        int healthBefore = hit == null ? 0 : instances.combatSnapshot(instance.match().id()).orElseThrow().guards().getOrDefault(hit, 0);
         if (instances.fire(player.getUniqueId(), Optional.ofNullable(hit), closest, true)) {
-            player.sendActionBar(Component.text(hit == null ? "Carbine fired" : "Hit " + hit, NamedTextColor.GRAY));
             audio.emit(instance, player.getLocation(), dev.gameheist.paper.pack.HeistAudio.Cue.CARBINE_FIRE);
             // Remove defeated guards immediately so a second player's shot cannot hit their old body.
             var state = instances.combatSnapshot(instance.match().id()).orElseThrow();
+            if (hit != null && state.guards().getOrDefault(hit, 0) < healthBefore)
+                gameplay.hitFeedback(instance, player.getUniqueId(), hit, state.guards().getOrDefault(hit, 0));
             if (hit != null && state.guards().getOrDefault(hit, 0) == 0) guards.actors(instance.match().id()).get(hit).release();
         }
     }

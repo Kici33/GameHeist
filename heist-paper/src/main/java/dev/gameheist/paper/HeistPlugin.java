@@ -78,7 +78,7 @@ public final class HeistPlugin extends JavaPlugin {
             var audio = new dev.gameheist.paper.pack.HeistAudio(players, profiles::soundEnabled);
             var gameplay = new HeistGameplay(instances, arenas, players, audio);
             var guards = new GuardController(instances, arenas, players, getLogger());
-            var combat = new CombatController(instances, players, guards, getLogger(), audio);
+            var combat = new CombatController(instances, players, guards, getLogger(), audio, gameplay);
             var statistics = new StatisticsView(storage != null ? storage : results, storage != null);
             var command = Objects.requireNonNull(getCommand("heist"));
             var executor = new HeistCommand(instances, arenas, packs, players, results, getLogger(), guards, profiles, storage != null, statistics, drain);

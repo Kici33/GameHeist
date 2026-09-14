@@ -70,6 +70,10 @@ public final class HeistGameplay {
             player.sendMessage(Component.text(failure.getMessage(), NamedTextColor.YELLOW));
         }
     }
+    public void hitFeedback(InstanceSnapshot instance, UUID shooter, String guard, int health) {
+        if (!instance.match().participants().containsKey(shooter)) return;
+        view(instance).hits.computeIfAbsent(shooter, ignored -> new HitFeedback()).hit(ticks, guard, health);
+    }
 
     public void tick() {
         ticks++;
@@ -218,6 +222,12 @@ public final class HeistGameplay {
                         + (state.carriedBags().containsKey(playerId) ? " · BAG → GREEN · Shift+F return" : "");
             }
             String crewStatus = CrewStatus.format(playerId, crew);
+            var feedback = view.hits.get(playerId);
+            if (feedback != null && combat.isPresent() && !combat.orElseThrow().players().get(playerId).downed()) {
+                String hit = feedback.text(ticks);
+                if (!hit.isEmpty()) status += " · " + hit;
+                else view.hits.remove(playerId);
+            }
             if (!crewStatus.isEmpty()) {
                 BossBar crewBar = view.crewBars.computeIfAbsent(playerId, ignored -> {
                     var bar = BossBar.bossBar(Component.text(crewStatus), 1, BossBar.Color.GREEN, BossBar.Overlay.PROGRESS);
@@ -262,6 +272,7 @@ public final class HeistGameplay {
         private final AudioTimeline audio = new AudioTimeline();
         private final Map<UUID, String> crewNames = new HashMap<>();
         private final Map<UUID, BossBar> crewBars = new HashMap<>();
+        private final Map<UUID, HitFeedback> hits = new HashMap<>();
         private final BossBar bar = BossBar.bossBar(Component.text("Heist"), 0, BossBar.Color.BLUE, BossBar.Overlay.PROGRESS);
         private final Set<UUID> viewers = new HashSet<>();
         private final Set<BlockPosition> hiddenBags = new HashSet<>();
