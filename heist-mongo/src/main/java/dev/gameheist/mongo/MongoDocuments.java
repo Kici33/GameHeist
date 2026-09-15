@@ -43,6 +43,7 @@ final class MongoDocuments {
                 .append("finishedAt", value.finishedAt().toString()).append("alarm", value.alarm().name())
                 .append("participants", participants).append("completedObjectives", value.completedObjectives().stream().sorted().toList())
                 .append("securedBags", value.securedBags());
+        value.gameplayMillis().ifPresent(duration -> document.append("gameplayMillis", duration));
         // Optional additive field keeps older non-combat result retry identities unchanged.
         if (!value.combatStats().isEmpty()) document.append("combatStats", value.combatStats().entrySet().stream()
                 .sorted(Map.Entry.comparingByKey()).map(e -> new Document("playerId", e.getKey().toString())

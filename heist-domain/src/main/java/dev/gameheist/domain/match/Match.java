@@ -186,10 +186,13 @@ public final class Match {
 
     private void finish(MatchOutcome outcome, String reason) {
         if (Objects.requireNonNull(reason).isBlank()) throw new IllegalArgumentException("Reason is blank");
+        Instant finishedAt = clock.instant();
         result = new MatchResult(id, arena.key(), difficulty, seed, practice, outcome, reason,
-                createdAt, clock.instant(), alarm, participants, completed,
+                createdAt, finishedAt, alarm, participants, completed,
                 heist.map(run -> run.snapshot().securedBags()).orElse(0),
-                combat == null ? Map.of() : combat.contributions());
+                combat == null ? Map.of() : combat.contributions(),
+                deadline == null ? OptionalLong.empty() : OptionalLong.of(Math.max(0,
+                        java.time.Duration.between(deadline.minus(arena.timeLimit()), finishedAt).toMillis())));
         phase = MatchPhase.FINALIZING;
     }
 

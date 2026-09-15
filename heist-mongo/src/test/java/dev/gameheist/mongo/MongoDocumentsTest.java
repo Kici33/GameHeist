@@ -41,5 +41,12 @@ class MongoDocumentsTest {
         changed.remove("combatStats");
         assertEquals(MongoDocuments.result(old), changed);
         assertEquals(document, MongoDocuments.result(result));
+        assertFalse(document.containsKey("gameplayMillis"));
+        var timed = new dev.gameheist.domain.match.MatchResult(old.matchId(), old.arena(), old.difficulty(), old.seed(), old.practice(),
+                old.outcome(), old.reason(), old.createdAt(), old.finishedAt(), old.alarm(), crew, Set.of(), 3, stats, OptionalLong.of(65432));
+        var timedDocument = MongoDocuments.result(timed);
+        assertEquals(65432L, timedDocument.getLong("gameplayMillis"));
+        timedDocument.remove("gameplayMillis");
+        assertEquals(document, timedDocument);
     }
 }

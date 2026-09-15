@@ -10,7 +10,14 @@ public record MatchResult(UUID matchId, ArenaKey arena, Difficulty difficulty, l
                           boolean practice, MatchOutcome outcome, String reason,
                           Instant createdAt, Instant finishedAt, AlarmState alarm,
                           Map<UUID, Loadout> participants, Set<String> completedObjectives, int securedBags,
-                          Map<UUID, CombatStats> combatStats) {
+                          Map<UUID, CombatStats> combatStats, OptionalLong gameplayMillis) {
+    public MatchResult(UUID matchId, ArenaKey arena, Difficulty difficulty, long seed,
+                       boolean practice, MatchOutcome outcome, String reason, Instant createdAt, Instant finishedAt,
+                       AlarmState alarm, Map<UUID, Loadout> participants, Set<String> completedObjectives, int securedBags,
+                       Map<UUID, CombatStats> combatStats) {
+        this(matchId, arena, difficulty, seed, practice, outcome, reason, createdAt, finishedAt,
+                alarm, participants, completedObjectives, securedBags, combatStats, OptionalLong.empty());
+    }
     public MatchResult(UUID matchId, ArenaKey arena, Difficulty difficulty, long seed,
                        boolean practice, MatchOutcome outcome, String reason, Instant createdAt, Instant finishedAt,
                        AlarmState alarm, Map<UUID, Loadout> participants, Set<String> completedObjectives, int securedBags) {
@@ -32,6 +39,8 @@ public record MatchResult(UUID matchId, ArenaKey arena, Difficulty difficulty, l
         Objects.requireNonNull(createdAt);
         Objects.requireNonNull(finishedAt);
         Objects.requireNonNull(alarm);
+        Objects.requireNonNull(gameplayMillis);
+        if (gameplayMillis.isPresent() && gameplayMillis.getAsLong() < 0) throw new IllegalArgumentException("Negative gameplay time");
         if (securedBags < 0) throw new IllegalArgumentException("Negative secured bags");
         participants = Map.copyOf(participants);
         combatStats = Map.copyOf(combatStats);

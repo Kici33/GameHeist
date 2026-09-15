@@ -8,6 +8,19 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 class MatchTest {
+    @Test void resultTimeExcludesLobbyWaitAndStaysFixedAfterFinish() {
+        clock.advance(Duration.ofMinutes(2));
+        start();
+        clock.advance(Duration.ofMillis(65432));
+        match.abort("test");
+        assertEquals(65432, match.result().orElseThrow().gameplayMillis().orElseThrow());
+        clock.advance(Duration.ofMinutes(1));
+        assertEquals(65432, match.result().orElseThrow().gameplayMillis().orElseThrow());
+    }
+    @Test void abortBeforeStartHasNoGameplayTime() {
+        match.abort("cancelled_in_lobby");
+        assertTrue(match.result().orElseThrow().gameplayMillis().isEmpty());
+    }
     @Test void countdownBeginsAtStartAndUsesTheActualDeadline() {
         assertTrue(match.snapshot().remainingMillis().isEmpty());
         clock.advance(Duration.ofSeconds(20));
