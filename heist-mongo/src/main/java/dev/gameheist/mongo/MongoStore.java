@@ -21,12 +21,19 @@ public final class MongoStore implements ProfileRepository, ResultRepository, St
     private final MongoCollection<Document> results;
     private final MongoReservations reservations;
     private final MongoRewards rewards;
+    private final MongoLeaderboards leaderboards;
     private boolean statisticsIndexReady;
+    private final int practiceRetentionDays;
     private final ThreadPoolExecutor workers = new ThreadPoolExecutor(2, 2, 0, TimeUnit.SECONDS,
             new ArrayBlockingQueue<>(128), Thread.ofPlatform().daemon().name("heist-storage-", 0).factory(),
             new ThreadPoolExecutor.AbortPolicy());
 
     public MongoStore(String uri, String database) {
+        this(uri, database, 0);
+    }
+    public MongoStore(String uri, String database, int practiceRetentionDays) {
+        if (practiceRetentionDays < 0 || practiceRetentionDays > 36500) throw new IllegalArgumentException("Invalid practice retention days");
+        this.practiceRetentionDays = practiceRetentionDays;
         if (uri == null || uri.isBlank()) throw new IllegalArgumentException("HEIST_MONGODB_URI is required for MongoDB storage");
         if (database == null || !database.matches("[a-zA-Z0-9_-]{1,63}")) throw new IllegalArgumentException("Invalid MongoDB database name");
         var settings = MongoClientSettings.builder().applyConnectionString(new ConnectionString(uri))
@@ -40,6 +47,7 @@ public final class MongoStore implements ProfileRepository, ResultRepository, St
         profiles = client.getDatabase(database).getCollection("profiles");
         results = client.getDatabase(database).getCollection("match_results");
         reservations = new MongoReservations(client.getDatabase(database).getCollection("reservations"), this);
+        leaderboards = new MongoLeaderboards(this, client.getDatabase(database));
         rewards = new MongoRewards(this, client, client.getDatabase(database));
     }
     @Override public CompletionStage<PlayerProfile> loadOrCreate(UUID playerId) {
@@ -70,11 +78,17 @@ public final class MongoStore implements ProfileRepository, ResultRepository, St
     }
     @Override public CompletionStage<Void> save(MatchResult result) {
         return submit(() -> {
+            ensureStatisticsIndex();
             var document = MongoDocuments.result(result);
+            if (result.practice() && practiceRetentionDays > 0) document.append("expiresAt",
+                    java.util.Date.from(result.finishedAt().plus(java.time.Duration.ofDays(practiceRetentionDays))));
             try { results.insertOne(document); }
             catch (MongoWriteException failure) {
                 if (!duplicate(failure)) throw failure;
-                if (!document.equals(results.find(eq("_id", result.matchId().toString())).first())) {
+                var previous = results.find(eq("_id", result.matchId().toString())).first();
+                document.remove("expiresAt");
+                if (previous != null) previous.remove("expiresAt");
+                if (!document.equals(previous)) {
                     throw new IllegalStateException("Conflicting match result", failure);
                 }
             }
@@ -100,6 +114,10 @@ public final class MongoStore implements ProfileRepository, ResultRepository, St
                     .append("damageDealt", new Document("$sum", "$personalCombat.damageDealt"))
                     .append("damageTaken", new Document("$sum", "$personalCombat.damageTaken"))
                     .append("revives", new Document("$sum", "$personalCombat.revives"))
+                    .append("playtime", new Document("$sum", "$gameplayMillis"))
+                    .append("timedRuns", countIf(new Document("$isNumber", "$gameplayMillis")))
+                    .append("objectiveActions", new Document("$sum", "$personalObjectives.actions"))
+                    .append("personalBags", new Document("$sum", "$personalObjectives.securedBags"))
                     .append("bestWinMillis", new Document("$min", new Document("$cond", java.util.Arrays.asList(
                             new Document("$eq", List.of("$outcome", "WON")), "$gameplayMillis", null))));
             // Filter before grouping: crew contributions must never count toward another player's totals.
@@ -107,20 +125,29 @@ public final class MongoStore implements ProfileRepository, ResultRepository, St
             var personal = new Document("$arrayElemAt", List.of(new Document("$filter", new Document("input",
                     new Document("$ifNull", List.of("$combatStats", List.of())))
                     .append("as", "combat").append("cond", new Document("$eq", List.of("$$combat.playerId", playerId.toString())))), 0));
-            var row = results.aggregate(List.of(com.mongodb.client.model.Aggregates.match(filter),
-                    new Document("$set", new Document("personalCombat", personal)),
-                    new Document("$group", group))).maxTime(3, TimeUnit.SECONDS).first();
+            var personalObjectives = new Document("$arrayElemAt", List.of(new Document("$filter", new Document("input",
+                    new Document("$ifNull", List.of("$objectiveStats", List.of()))).append("as", "objective")
+                    .append("cond", new Document("$eq", List.of("$$objective.playerId", playerId.toString())))), 0));
+            var pipeline = new java.util.ArrayList<org.bson.conversions.Bson>();
+            pipeline.add(com.mongodb.client.model.Aggregates.match(filter));
+            if (!scope.practice()) pipeline.addAll(MongoLeaderboards.eligibilityStages());
+            pipeline.add(new Document("$set", new Document("personalCombat", personal).append("personalObjectives", personalObjectives)));
+            pipeline.add(new Document("$group", group));
+            var row = results.aggregate(pipeline).maxTime(3, TimeUnit.SECONDS).first();
             if (row == null) return PlayerStatistics.empty();
             return new PlayerStatistics(number(row, "wins"), number(row, "losses"), number(row, "aborted"),
                     number(row, "stealthWins"), number(row, "bags"), number(row, "damageDealt"),
                     number(row, "damageTaken"), number(row, "revives"),
-                    row.get("bestWinMillis") == null ? java.util.OptionalLong.empty() : java.util.OptionalLong.of(number(row, "bestWinMillis")));
+                    row.get("bestWinMillis") == null ? java.util.OptionalLong.empty() : java.util.OptionalLong.of(number(row, "bestWinMillis")),
+                    number(row, "playtime"), number(row, "timedRuns"),
+                    new dev.gameheist.domain.player.ObjectiveStats(number(row, "objectiveActions"), number(row, "personalBags")));
         });
     }
     private synchronized void ensureStatisticsIndex() {
         if (statisticsIndexReady) return;
         results.createIndex(new Document("participants.playerId", 1).append("practice", 1)
                 .append("arena.id", 1).append("arena.version", 1).append("difficulty", 1));
+        results.createIndex(new Document("expiresAt", 1), new com.mongodb.client.model.IndexOptions().expireAfter(0L, TimeUnit.SECONDS));
         statisticsIndexReady = true;
     }
     private static Document countIf(Document condition) {
@@ -133,6 +160,7 @@ public final class MongoStore implements ProfileRepository, ResultRepository, St
     }
     public ReservationRepository reservations() { return reservations; }
     public MongoRewards rewards() { return rewards; }
+    public MongoLeaderboards leaderboards() { return leaderboards; }
     <T> CompletableFuture<T> submit(Supplier<T> operation) {
         try { return CompletableFuture.supplyAsync(operation, workers); }
         catch (RejectedExecutionException failure) { return CompletableFuture.failedFuture(failure); }

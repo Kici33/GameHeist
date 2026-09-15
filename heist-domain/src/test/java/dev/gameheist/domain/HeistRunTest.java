@@ -10,6 +10,39 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class HeistRunTest {
+    @Test void cancelledRepairGetsNoCreditAndCompletedRepairGetsCreditOnce() {
+        var match = match(1, 2);
+        interact(match, first, security);
+        interact(match, first, drill);
+        clock.advance(Duration.ofSeconds(5));
+        match.updateHeist(Map.of(second, drill.center()));
+        assertTrue(state(match).jammed());
+        interact(match, second, drill);
+        match.updateHeist(Map.of());
+        interact(match, second, drill);
+        clock.advance(Duration.ofSeconds(5));
+        match.updateHeist(Map.of(second, drill.center()));
+        match.updateHeist(Map.of(second, drill.center()));
+        match.abort("test");
+        assertEquals(new ObjectiveStats(1, 0), match.result().orElseThrow().objectiveStats().get(second));
+    }
+    @Test void objectiveContributionsCountSuccessfulActionsNotPickupOrRepeatedClicks() {
+        var match = match(0, 2);
+        openVault(match);
+        interact(match, first, security);
+        interact(match, second, bags.get(0));
+        assertTrue(match.returnBag(second));
+        interact(match, second, bags.get(0));
+        interact(match, second, extraction);
+        assertThrows(IllegalStateException.class, () -> interact(match, second, extraction));
+        match.abort("test");
+        var result = match.result().orElseThrow();
+        assertEquals(new ObjectiveStats(2, 0), result.objectiveStats().get(first));
+        assertEquals(new ObjectiveStats(1, 1), result.objectiveStats().get(second));
+        assertThrows(UnsupportedOperationException.class, () -> result.objectiveStats().clear());
+        assertEquals(new ObjectiveStats(1, 1), PlayerStatistics.empty().include(result, second).objectiveStats());
+        assertEquals(10000, PlayerStatistics.empty().include(result, second).gameplayMillis());
+    }
     @Test void returningLootAfterAbortCannotChangeFinalResultOrBagOwnership() {
         var match = match(0, 2);
         openVault(match);

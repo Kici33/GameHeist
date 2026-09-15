@@ -59,6 +59,9 @@ final class MongoDocuments {
                 .sorted(Map.Entry.comparingByKey()).map(e -> new Document("playerId", e.getKey().toString())
                         .append("damageDealt", e.getValue().damageDealt()).append("damageTaken", e.getValue().damageTaken())
                         .append("revives", e.getValue().revives())).toList());
+        if (!value.objectiveStats().isEmpty()) document.append("objectiveStats", value.objectiveStats().entrySet().stream()
+                .sorted(Map.Entry.comparingByKey()).map(e -> new Document("playerId", e.getKey().toString())
+                        .append("actions", e.getValue().actions()).append("securedBags", e.getValue().securedBags())).toList());
         return document;
     }
 }

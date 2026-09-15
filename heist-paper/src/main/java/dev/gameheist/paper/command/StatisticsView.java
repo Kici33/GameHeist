@@ -21,11 +21,12 @@ public final class StatisticsView implements Listener {
         this.durable = durable;
     }
     public void request(Player player, StatisticsScope scope) {
+        if (!durable && !scope.practice()) throw new IllegalStateException("Production statistics require durable storage");
         if (requests.containsKey(player.getUniqueId())) throw new IllegalStateException("Wait a few seconds before requesting statistics again");
         if (requests.size() >= 128) throw new IllegalStateException("Statistics requests are busy; try again shortly");
         var future = repository.statistics(player.getUniqueId(), scope).toCompletableFuture();
         requests.put(player.getUniqueId(), new Request(player, scope, future, System.nanoTime()));
-        player.sendMessage(Component.text("Loading practice statistics..."));
+        player.sendMessage(Component.text("Loading scoped statistics..."));
     }
     public void tick() {
         var iterator = requests.values().iterator();
@@ -43,13 +44,16 @@ public final class StatisticsView implements Listener {
                     var stats = request.future.join();
                     String best = stats.bestWinMillis().isPresent()
                             ? dev.gameheist.paper.gameplay.RunTimeFormat.format(stats.bestWinMillis().getAsLong()) : "no timed win in available results";
-                    request.player.sendMessage(Component.text("Practice statistics: " + request.scope.arena()
+                    request.player.sendMessage(Component.text((request.scope.practice() ? "Practice statistics: " : "Production statistics: ") + request.scope.arena()
                             + " / " + request.scope.difficulty() + " / crew " + request.scope.crewSize()
                             + (durable ? " (saved results)" : " (recent memory history only)")));
                     request.player.sendMessage(Component.text((durable ? "Best saved winning run: " : "Best retained winning run: ") + best));
                     request.player.sendMessage(Component.text("Runs=" + stats.runs() + "; wins=" + stats.wins()
                             + "; losses=" + stats.losses() + "; aborted=" + stats.aborted()
                             + "; stealth wins=" + stats.stealthWins() + "; crew bags=" + stats.crewSecuredBags()));
+                    request.player.sendMessage(Component.text("Recorded playtime=" + stats.gameplayMillis() + " ms across " + stats.timedRuns()
+                            + "/" + stats.runs() + " timed runs; recorded objective actions=" + stats.objectiveStats().actions()
+                            + "; personally secured bags=" + stats.objectiveStats().securedBags()));
                     request.player.sendMessage(Component.text("Your combat contribution: damage dealt=" + stats.damageDealt()
                             + "; damage taken=" + stats.damageTaken() + "; revives=" + stats.revives()));
                 } catch (RuntimeException failure) {

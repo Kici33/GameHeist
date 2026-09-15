@@ -63,7 +63,8 @@ public final class HeistPlugin extends JavaPlugin {
             ResultRepository resultRepository;
             String storageMode = getConfig().getString("storage.mode", "memory");
             if (storageMode.equals("mongodb")) {
-                storage = new MongoStore(System.getenv("HEIST_MONGODB_URI"), getConfig().getString("storage.database", "gameheist"));
+                storage = new MongoStore(System.getenv("HEIST_MONGODB_URI"), getConfig().getString("storage.database", "gameheist"),
+                        getConfig().getInt("storage.practice-retention-days", 0));
                 profileRepository = storage;
                 resultRepository = result -> storage.save(result).thenCompose(ignored -> results.save(result));
             } else if (storageMode.equals("memory")) {
@@ -81,11 +82,14 @@ public final class HeistPlugin extends JavaPlugin {
             var combat = new CombatController(instances, players, guards, getLogger(), audio, gameplay);
             var statistics = new StatisticsView(storage != null ? storage : results, storage != null);
             var command = Objects.requireNonNull(getCommand("heist"));
+            var leaderboards = new dev.gameheist.paper.command.LeaderboardView(storage == null
+                    ? scope -> java.util.concurrent.CompletableFuture.failedFuture(new IllegalStateException("Durable storage required")) : storage.leaderboards());
+            Bukkit.getPluginManager().registerEvents(leaderboards, this);
             var progression = new dev.gameheist.paper.command.ProgressionView(storage == null ? null : storage.rewards(), getLogger());
             Bukkit.getPluginManager().registerEvents(progression, this);
             var menus = new dev.gameheist.paper.menu.PlayerMenus(this, profiles, instances, results);
             Bukkit.getPluginManager().registerEvents(menus, this);
-            var executor = new HeistCommand(instances, arenas, packs, players, results, getLogger(), guards, profiles, storage != null, statistics, drain, menus, progression);
+            var executor = new HeistCommand(instances, arenas, packs, players, results, getLogger(), guards, profiles, storage != null, statistics, drain, menus, progression, leaderboards);
             command.setExecutor(executor);
             command.setTabCompleter(executor);
             Bukkit.getPluginManager().registerEvents(packs, this);
@@ -119,6 +123,7 @@ public final class HeistPlugin extends JavaPlugin {
                 profiles.tick();
                 menus.tick();
                 statistics.tick();
+                leaderboards.tick();
                 progression.tick();
                 guards.tick();
                 combat.tick();

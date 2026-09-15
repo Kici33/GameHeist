@@ -32,10 +32,11 @@ public final class HeistCommand implements TabExecutor {
     private final StatisticsView statistics;
     private final DrainController drain;
     private final ProgressionView progression;
+    private final LeaderboardView leaderboards;
     private final dev.gameheist.paper.menu.PlayerMenus menus;
 
     public HeistCommand(InstanceManager instances, ArenaRegistry arenas, ResourcePackGate packs,
-                        PlayerSessions players, InMemoryResultRepository results, Logger logger, GuardController guards, ProfileSessions profiles, boolean durable, StatisticsView statistics, DrainController drain, dev.gameheist.paper.menu.PlayerMenus menus, ProgressionView progression) {
+                        PlayerSessions players, InMemoryResultRepository results, Logger logger, GuardController guards, ProfileSessions profiles, boolean durable, StatisticsView statistics, DrainController drain, dev.gameheist.paper.menu.PlayerMenus menus, ProgressionView progression, LeaderboardView leaderboards) {
         this.instances = instances;
         this.arenas = arenas;
         this.packs = packs;
@@ -49,11 +50,12 @@ public final class HeistCommand implements TabExecutor {
         this.drain = drain;
         this.menus = menus;
         this.progression = progression;
+        this.leaderboards = leaderboards;
     }
 
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         String action = args.length == 0 ? "menu" : args[0].toLowerCase(Locale.ROOT);
-        if (!sender.hasPermission("heist.play") || (!Set.of("help", "controls", "arenas", "list", "join", "profile", "preset", "presetname", "menu", "progression", "settings", "stats").contains(action)
+        if (!sender.hasPermission("heist.play") || (!Set.of("help", "controls", "arenas", "list", "join", "profile", "preset", "presetname", "menu", "progression", "leaderboard", "settings", "stats").contains(action)
                 && !sender.hasPermission("heist.admin"))) {
             say(sender, "You do not have permission for this action.");
             return true;
@@ -64,7 +66,8 @@ public final class HeistCommand implements TabExecutor {
                         GameHeist practice commands (no rewards):
                         /heist arenas | list | controls
                         /heist results [page]
-                        /heist stats <arena-id> <version> <crew-size>
+                        /heist stats <arena-id> <version> <crew-size> [NORMAL|HARD] [practice|production]
+                        /heist leaderboard <arena-id> <version> <crew-size> [NORMAL|HARD]
                         /heist profile [reload] | /heist progression
                         /heist preset <1-3> [TECHNICIAN|SCOUT|ENFORCER|SUPPORT]
                         /heist menu [home|crew|queue|loadout|settings|results]
@@ -102,11 +105,16 @@ public final class HeistCommand implements TabExecutor {
                     menus.open(player, args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "home");
                 }
                 case "profile", "preset", "presetname", "settings" -> profileAction(sender, args);
-                case "stats" -> {
+                case "stats", "leaderboard" -> {
                     requireArgs(args, 4);
                     if (!(sender instanceof Player player)) throw new IllegalStateException("Statistics require a player");
                     var arena = new ArenaKey(args[1], Integer.parseInt(args[2]));
-                    statistics.request(player, new StatisticsScope(arena, Difficulty.NORMAL, Integer.parseInt(args[3]), true));
+                    Difficulty difficulty = args.length > 4 ? Difficulty.valueOf(args[4].toUpperCase(Locale.ROOT)) : Difficulty.NORMAL;
+                    if (action.equals("leaderboard")) leaderboards.request(player, new StatisticsScope(arena, difficulty, Integer.parseInt(args[3]), false));
+                    else {
+                        if (args.length > 5 && !Set.of("practice", "production").contains(args[5].toLowerCase(Locale.ROOT))) throw new IllegalArgumentException("Scope must be practice or production");
+                        statistics.request(player, new StatisticsScope(arena, difficulty, Integer.parseInt(args[3]), args.length <= 5 || args[5].equalsIgnoreCase("practice")));
+                    }
                 }
                 case "arenas" -> arenas.all().forEach(a -> say(sender, a.key() + " — " + a.displayName()));
                 case "list" -> {
@@ -196,11 +204,11 @@ public final class HeistCommand implements TabExecutor {
         if (!sender.hasPermission("heist.play") || args.length == 0) return List.of();
         List<String> choices = List.of();
         if (args.length == 1) choices = sender.hasPermission("heist.admin")
-                ? List.of("help", "controls", "arenas", "list", "create", "join", "start", "complete", "alarm", "guards", "stop", "drain", "results", "profile", "preset", "presetname", "menu", "progression", "settings", "stats")
-                : List.of("help", "controls", "arenas", "list", "join", "profile", "preset", "presetname", "menu", "progression", "settings", "stats");
-        else if (args.length == 2 && (args[0].equalsIgnoreCase("create") || args[0].equalsIgnoreCase("stats"))) {
+                ? List.of("help", "controls", "arenas", "list", "create", "join", "start", "complete", "alarm", "guards", "stop", "drain", "results", "profile", "preset", "presetname", "menu", "progression", "leaderboard", "settings", "stats")
+                : List.of("help", "controls", "arenas", "list", "join", "profile", "preset", "presetname", "menu", "progression", "leaderboard", "settings", "stats");
+        else if (args.length == 2 && (args[0].equalsIgnoreCase("create") || (args[0].equalsIgnoreCase("stats") || args[0].equalsIgnoreCase("leaderboard")))) {
             choices = arenas.all().stream().map(a -> a.key().id()).distinct().toList();
-        } else if (args.length == 3 && (args[0].equalsIgnoreCase("create") || args[0].equalsIgnoreCase("stats"))) {
+        } else if (args.length == 3 && (args[0].equalsIgnoreCase("create") || (args[0].equalsIgnoreCase("stats") || args[0].equalsIgnoreCase("leaderboard")))) {
             choices = arenas.all().stream().filter(a -> a.key().id().equals(args[1])).map(a -> Integer.toString(a.key().version())).toList();
         } else if (args.length == 2 && Set.of("join", "start", "complete", "alarm", "guards", "stop").contains(args[0].toLowerCase(Locale.ROOT))) {
             choices = instances.all().stream().map(i -> i.match().id().toString()).toList();
@@ -215,7 +223,9 @@ public final class HeistCommand implements TabExecutor {
         if (args.length == 2 && args[0].equalsIgnoreCase("menu")) choices = List.of("home", "crew", "queue", "loadout", "settings", "results");
         if (args.length == 2 && args[0].equalsIgnoreCase("settings")) choices = List.of("language", "sound", "particles", "motion", "notifications");
         if (args.length == 3 && args[0].equalsIgnoreCase("settings")) choices = args[1].equalsIgnoreCase("language") ? List.of("en", "pl") : List.of("on", "off");
-        if (args.length == 4 && args[0].equalsIgnoreCase("stats")) choices = List.of("1", "2", "3", "4");
+        if (args.length == 4 && Set.of("stats", "leaderboard").contains(args[0].toLowerCase(Locale.ROOT))) choices = List.of("1", "2", "3", "4");
+        if (args.length == 5 && Set.of("stats", "leaderboard").contains(args[0].toLowerCase(Locale.ROOT))) choices = List.of("NORMAL", "HARD");
+        if (args.length == 6 && args[0].equalsIgnoreCase("stats")) choices = List.of("practice", "production");
         String prefix = args[args.length - 1].toLowerCase(Locale.ROOT);
         return choices.stream().filter(s -> s.toLowerCase(Locale.ROOT).startsWith(prefix)).toList();
     }

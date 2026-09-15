@@ -14,6 +14,7 @@ public final class HeistRun {
     private final long[] jamThresholds;
     private final Map<UUID, BlockPosition> carried = new HashMap<>();
     private final Set<BlockPosition> unavailable = new HashSet<>();
+    private final Map<UUID, dev.gameheist.domain.player.ObjectiveStats> contributions = new HashMap<>();
     private final Set<UUID> votes = new HashSet<>();
     private boolean securityDisabled, started, complete, jammed;
     private int jamsTriggered, secured;
@@ -40,6 +41,7 @@ public final class HeistRun {
             if (securityDisabled) return "Security is already disabled.";
             match.completeObjective(definition.securityObjective());
             securityDisabled = true;
+            contribute(player, false);
             return "Security disabled. Install the drill at the orange marker.";
         }
         if (block.equals(definition.drill())) {
@@ -47,6 +49,7 @@ public final class HeistRun {
             if (complete) return "Vault open. Collect a gold bag and bring it to extraction.";
             if (!started) {
                 started = true;
+                contribute(player, false);
                 lastTick = clock.instant();
                 return "Drill installed. Stay ready to repair jams.";
             }
@@ -70,6 +73,7 @@ public final class HeistRun {
         if (block.equals(definition.extraction())) {
             if (carried.remove(player) != null) {
                 secured++;
+                contribute(player, true);
                 if (secured == definition.requiredBags()) match.completeObjective(definition.lootObjective());
                 return "Bag secured (" + secured + "/" + definition.requiredBags()
                         + "). Click again to vote for extraction once enough bags are secured.";
@@ -98,6 +102,7 @@ public final class HeistRun {
                         repairingPlayer = null;
                         repairDeadline = null;
                     } else if (!now.isBefore(repairDeadline)) {
+                        contribute(repairingPlayer, false);
                         jammed = false;
                         repairingPlayer = null;
                         repairDeadline = null;
@@ -137,6 +142,12 @@ public final class HeistRun {
         votes.remove(player);
         if (player.equals(repairingPlayer)) { repairingPlayer = null; repairDeadline = null; }
     }
+
+    private void contribute(UUID player, boolean bag) {
+        contributions.merge(player, new dev.gameheist.domain.player.ObjectiveStats(1, bag ? 1 : 0),
+                dev.gameheist.domain.player.ObjectiveStats::add);
+    }
+    public Map<UUID, dev.gameheist.domain.player.ObjectiveStats> contributions() { return Map.copyOf(contributions); }
 
     public HeistSnapshot snapshot() {
         return new HeistSnapshot(securityDisabled, started, complete, jammed, jamsTriggered,

@@ -57,7 +57,7 @@ jobs:
       - name: Build and run regression tests
         run: bash ./gradlew clean build --no-daemon
       - name: Test local readiness checker
-        run: python3 -m unittest discover -s ops/server -p test_check_local.py
+        run: python3 -m unittest discover -s ops/server -p 'test_*.py'
       - name: Build server image without starting Minecraft
         run: docker build -f ops/server/Dockerfile -t gameheist:26.1.2-dev .
       - name: Verify image and EULA refusal

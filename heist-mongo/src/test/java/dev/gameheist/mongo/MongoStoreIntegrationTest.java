@@ -129,6 +129,11 @@ class MongoStoreIntegrationTest {
                             await(store.save(result));
                             await(store.save(result));
                             await(memory.save(result));
+                            // This query fixture explicitly models authoritative acceptance; raw production saves are excluded.
+                            if (!practice) try (var client = MongoClients.create(URI)) {
+                                client.getDatabase(database).getCollection("result_eligibility").insertOne(
+                                        new Document("_id", result.matchId().toString()).append("valid", true).append("version", 1));
+                            }
                         }
                     }
                 }

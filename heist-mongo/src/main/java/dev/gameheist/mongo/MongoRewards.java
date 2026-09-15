@@ -19,7 +19,7 @@ public final class MongoRewards {
             .readConcern(ReadConcern.SNAPSHOT).writeConcern(WriteConcern.MAJORITY).build();
     private final MongoStore store;
     private final MongoClient client;
-    private final MongoCollection<Document> reservations, results, jobs, receipts, progression;
+    private final MongoCollection<Document> reservations, results, jobs, receipts, progression, eligibility;
     private boolean indexed;
 
     MongoRewards(MongoStore store, MongoClient client, MongoDatabase database) {
@@ -29,6 +29,7 @@ public final class MongoRewards {
         jobs = database.getCollection("reward_jobs");
         receipts = database.getCollection("reward_receipts");
         progression = database.getCollection("player_progression");
+        eligibility = database.getCollection("result_eligibility");
     }
 
     /** Trusted backend API. Caller identity must come from the transport, not player input. */
@@ -61,6 +62,8 @@ public final class MongoRewards {
                             eq("assignment", ReservationDocuments.assignment(caller))), Updates.set("rewardResult", result.matchId().toString()));
                     if (fenced.getMatchedCount() != 1) throw new IllegalStateException("Reservation ownership changed");
                     results.insertOne(session, payload);
+                    eligibility.insertOne(session, new Document("_id", result.matchId().toString()).append("valid", true)
+                            .append("version", 1).append("reservationId", reservationId.toString()));
                     if (xp > 0) for (UUID player : result.participants().keySet()) {
                         String key = result.matchId() + "/" + player + "/" + RewardPolicy.VERSION;
                         jobs.insertOne(session, new Document("_id", key).append("matchId", result.matchId().toString())
@@ -70,6 +73,7 @@ public final class MongoRewards {
                     return null;
                 }, TRANSACTION);
             }
+            store.leaderboards().clearCache();
             return null;
         });
     }

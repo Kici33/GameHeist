@@ -10,7 +10,15 @@ public record MatchResult(UUID matchId, ArenaKey arena, Difficulty difficulty, l
                           boolean practice, MatchOutcome outcome, String reason,
                           Instant createdAt, Instant finishedAt, AlarmState alarm,
                           Map<UUID, Loadout> participants, Set<String> completedObjectives, int securedBags,
-                          Map<UUID, CombatStats> combatStats, OptionalLong gameplayMillis) {
+                          Map<UUID, CombatStats> combatStats, OptionalLong gameplayMillis,
+                          Map<UUID, dev.gameheist.domain.player.ObjectiveStats> objectiveStats) {
+    public MatchResult(UUID matchId, ArenaKey arena, Difficulty difficulty, long seed,
+                       boolean practice, MatchOutcome outcome, String reason, Instant createdAt, Instant finishedAt,
+                       AlarmState alarm, Map<UUID, Loadout> participants, Set<String> completedObjectives, int securedBags,
+                       Map<UUID, CombatStats> combatStats, OptionalLong gameplayMillis) {
+        this(matchId, arena, difficulty, seed, practice, outcome, reason, createdAt, finishedAt, alarm,
+                participants, completedObjectives, securedBags, combatStats, gameplayMillis, Map.of());
+    }
     public MatchResult(UUID matchId, ArenaKey arena, Difficulty difficulty, long seed,
                        boolean practice, MatchOutcome outcome, String reason, Instant createdAt, Instant finishedAt,
                        AlarmState alarm, Map<UUID, Loadout> participants, Set<String> completedObjectives, int securedBags,
@@ -44,6 +52,11 @@ public record MatchResult(UUID matchId, ArenaKey arena, Difficulty difficulty, l
         if (securedBags < 0) throw new IllegalArgumentException("Negative secured bags");
         participants = Map.copyOf(participants);
         combatStats = Map.copyOf(combatStats);
+        objectiveStats = Map.copyOf(objectiveStats);
+        if (!participants.keySet().containsAll(objectiveStats.keySet())) throw new IllegalArgumentException("Objectives outside crew");
+        long personalBags = 0;
+        for (var contribution : objectiveStats.values()) personalBags = Math.addExact(personalBags, contribution.securedBags());
+        if (personalBags > securedBags) throw new IllegalArgumentException("Personal bags exceed crew total");
         if (!participants.keySet().containsAll(combatStats.keySet())) throw new IllegalArgumentException("Combat stats outside crew");
         completedObjectives = Set.copyOf(completedObjectives);
     }

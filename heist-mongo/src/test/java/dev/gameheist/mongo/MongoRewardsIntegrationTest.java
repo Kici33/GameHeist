@@ -55,6 +55,76 @@ class MongoRewardsIntegrationTest {
         }
     }
 
+    @Test void leaderboardRequiresAuthorityAndInvalidationReconcilesTotalsAndCache() throws Exception {
+        var f = fixture();
+        var scope = new StatisticsScope(f.result.arena(), f.result.difficulty(), 1, false);
+        var timed = timed(f.result, 30000);
+        var practice = new MatchResult(UUID.randomUUID(), timed.arena(), timed.difficulty(), 1, true, MatchOutcome.WON,
+                "debug", timed.createdAt(), timed.finishedAt(), timed.alarm(), timed.participants(), Set.of(), 3, Map.of(), OptionalLong.of(1));
+        await(store.save(practice));
+        var unowned = new MatchResult(UUID.randomUUID(), timed.arena(), timed.difficulty(), 1, false, MatchOutcome.WON,
+                "unowned", timed.createdAt(), timed.finishedAt(), timed.alarm(), timed.participants(), Set.of(), 3, Map.of(), OptionalLong.of(1));
+        await(store.save(unowned));
+        assertTrue(await(store.leaderboards().leaderboard(scope)).isEmpty());
+        assertEquals(PlayerStatistics.empty(), await(store.statistics(f.player, scope)));
+        await(store.rewards().accept(f.reservation, f.backend, timed));
+        await(store.rewards().accept(f.reservation, f.backend, timed));
+        assertEquals(List.of(new LeaderboardEntry(f.player, 1, 30000, 30000)), await(store.leaderboards().leaderboard(scope)));
+        var stats = await(store.statistics(f.player, scope));
+        assertEquals(30000, stats.gameplayMillis()); assertEquals(1, stats.timedRuns());
+        assertEquals(new ObjectiveStats(3, 2), stats.objectiveStats());
+        assertTrue(await(store.leaderboards().leaderboard(new StatisticsScope(scope.arena(), Difficulty.HARD, 1, false))).isEmpty());
+        assertTrue(await(store.leaderboards().leaderboard(new StatisticsScope(scope.arena(), scope.difficulty(), 2, false))).isEmpty());
+        store.leaderboards().clearCache();
+        assertEquals(1, await(store.leaderboards().leaderboard(scope)).size());
+        await(store.leaderboards().invalidate(timed.matchId(), "invalid run"));
+        assertTrue(await(store.leaderboards().leaderboard(scope)).isEmpty());
+        assertEquals(PlayerStatistics.empty(), await(store.statistics(f.player, scope)));
+        await(store.rewards().accept(f.reservation, f.backend, timed));
+        assertTrue(await(store.leaderboards().leaderboard(scope)).isEmpty());
+    }
+
+    @Test void leaderboardTiesAreStableAndLegacyMissingTimeIsNotZero() throws Exception {
+        var first = fixture(); var second = fixture(); var legacy = fixture();
+        for (var f : List.of(first, second)) await(store.rewards().accept(f.reservation, f.backend, timed(f.result, 12345)));
+        await(store.rewards().accept(legacy.reservation, legacy.backend, legacy.result));
+        var scope = new StatisticsScope(first.result.arena(), first.result.difficulty(), 1, false);
+        var expected = List.of(first.player, second.player).stream().sorted(Comparator.comparing(UUID::toString)).toList();
+        assertEquals(expected, await(store.leaderboards().leaderboard(scope)).stream().map(LeaderboardEntry::playerId).toList());
+        var old = await(store.statistics(legacy.player, scope));
+        assertEquals(1, old.wins()); assertEquals(0, old.timedRuns()); assertTrue(old.bestWinMillis().isEmpty());
+        try (var restarted = new MongoStore(URI, database)) {
+            assertEquals(await(store.leaderboards().leaderboard(scope)), await(restarted.leaderboards().leaderboard(scope)));
+        }
+    }
+
+    @Test void retentionOnlyMarksPracticeAndDoesNotChangeRetryIdentity() throws Exception {
+        var f = fixture();
+        var practice = copy(f.result, true, 3);
+        try (var retaining = new MongoStore(URI, database, 7)) { await(retaining.save(practice)); }
+        try (var differentPolicy = new MongoStore(URI, database, 14)) { await(differentPolicy.save(practice)); }
+        try (var client = MongoClients.create(URI)) {
+            var collection = client.getDatabase(database).getCollection("match_results");
+            assertEquals(Date.from(practice.finishedAt().plus(Duration.ofDays(7))), collection.find(eq("_id", practice.matchId().toString())).first().getDate("expiresAt"));
+        }
+        var other = fixture();
+        await(store.rewards().accept(other.reservation, other.backend, timed(other.result, 30000)));
+        try (var client = MongoClients.create(URI)) {
+            var db = client.getDatabase(database);
+            var collection = db.getCollection("match_results");
+            assertFalse(collection.find(eq("_id", other.result.matchId().toString())).first().containsKey("expiresAt"));
+            collection.deleteOne(eq("_id", practice.matchId().toString())); // model TTL eviction without waiting for monitor
+            assertEquals(1, collection.countDocuments());
+            assertEquals(1, db.getCollection("result_eligibility").countDocuments());
+        }
+    }
+
+    private static MatchResult timed(MatchResult r, long millis) {
+        return new MatchResult(r.matchId(), r.arena(), r.difficulty(), r.seed(), r.practice(), r.outcome(), r.reason(),
+                r.createdAt(), r.finishedAt(), r.alarm(), r.participants(), r.completedObjectives(), r.securedBags(), r.combatStats(),
+                OptionalLong.of(millis), Map.of(r.participants().keySet().iterator().next(), new ObjectiveStats(3, 2)));
+    }
+
     @Test void competingWorkersAndReceiptReplayDoNotDuplicateProgression() throws Exception {
         var f = fixture();
         await(store.rewards().accept(f.reservation, f.backend, f.result));

@@ -24,6 +24,9 @@ storage:
   # Development default. Set mongodb and supply HEIST_MONGODB_URI to persist data.
   mode: memory
   database: gameheist
+  # 0 keeps practice detail indefinitely. Applies to newly stored results only.
+  # Production results and reward receipts never receive this expiry.
+  practice-retention-days: 0
 
 metrics:
   enabled: false

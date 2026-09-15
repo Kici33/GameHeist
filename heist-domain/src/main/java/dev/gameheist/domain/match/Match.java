@@ -192,7 +192,8 @@ public final class Match {
                 heist.map(run -> run.snapshot().securedBags()).orElse(0),
                 combat == null ? Map.of() : combat.contributions(),
                 deadline == null ? OptionalLong.empty() : OptionalLong.of(Math.max(0,
-                        java.time.Duration.between(deadline.minus(arena.timeLimit()), finishedAt).toMillis())));
+                        java.time.Duration.between(deadline.minus(arena.timeLimit()), finishedAt).toMillis())),
+                heist.map(HeistRun::contributions).orElse(Map.of()));
         phase = MatchPhase.FINALIZING;
     }
 

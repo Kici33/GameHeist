@@ -8,7 +8,12 @@ import java.util.Objects;
 
 /** Crew bags are shared outcome data, not a claim about this player's individual contribution. */
 public record PlayerStatistics(long wins, long losses, long aborted, long stealthWins, long crewSecuredBags,
-                               long damageDealt, long damageTaken, long revives, OptionalLong bestWinMillis) {
+                               long damageDealt, long damageTaken, long revives, OptionalLong bestWinMillis,
+                               long gameplayMillis, long timedRuns, ObjectiveStats objectiveStats) {
+    public PlayerStatistics(long wins, long losses, long aborted, long stealthWins, long crewSecuredBags,
+                            long damageDealt, long damageTaken, long revives, OptionalLong bestWinMillis) {
+        this(wins, losses, aborted, stealthWins, crewSecuredBags, damageDealt, damageTaken, revives, bestWinMillis, 0, 0, ObjectiveStats.empty());
+    }
     public PlayerStatistics(long wins, long losses, long aborted, long stealthWins, long crewSecuredBags,
                             long damageDealt, long damageTaken, long revives) {
         this(wins, losses, aborted, stealthWins, crewSecuredBags, damageDealt, damageTaken, revives, OptionalLong.empty());
@@ -18,6 +23,9 @@ public record PlayerStatistics(long wins, long losses, long aborted, long stealt
     }
     public PlayerStatistics {
         Objects.requireNonNull(bestWinMillis);
+        Objects.requireNonNull(objectiveStats);
+        if (gameplayMillis < 0 || timedRuns < 0 || timedRuns > Math.addExact(Math.addExact(wins, losses), aborted))
+            throw new IllegalArgumentException("Invalid aggregate playtime");
         if (bestWinMillis.isPresent() && (bestWinMillis.getAsLong() < 0 || wins == 0))
             throw new IllegalArgumentException("Invalid best win time");
         if (wins < 0 || losses < 0 || aborted < 0 || stealthWins < 0 || stealthWins > wins || crewSecuredBags < 0
@@ -42,6 +50,9 @@ public record PlayerStatistics(long wins, long losses, long aborted, long stealt
                 Math.addExact(stealthWins, result.outcome() == MatchOutcome.WON && result.alarm() == AlarmState.STEALTH ? 1 : 0),
                 Math.addExact(crewSecuredBags, result.securedBags()),
                 Math.addExact(damageDealt, combat.damageDealt()), Math.addExact(damageTaken, combat.damageTaken()),
-                Math.addExact(revives, combat.revives()), best);
+                Math.addExact(revives, combat.revives()), best,
+                Math.addExact(gameplayMillis, result.gameplayMillis().orElse(0)),
+                Math.addExact(timedRuns, result.gameplayMillis().isPresent() ? 1 : 0),
+                objectiveStats.add(result.objectiveStats().getOrDefault(playerId, ObjectiveStats.empty())));
     }
 }
