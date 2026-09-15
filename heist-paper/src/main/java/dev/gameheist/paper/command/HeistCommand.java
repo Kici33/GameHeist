@@ -147,9 +147,13 @@ public final class HeistCommand implements TabExecutor {
                             + "; safe to stop=" + status.safeToStop() + ". Repeat /heist drain to check. Restart to reopen.");
                 }
                 case "results" -> {
+                    if (args.length > 2) throw new IllegalArgumentException("Use /heist results [page]");
+                    var page = ResultHistory.page(results.all(), args.length == 2 ? Integer.parseInt(args[1]) : 1);
                     say(sender, durable ? "Acknowledged results from this server run; full history is in MongoDB. No rewards granted." : "Practice history is in memory only; no rewards were granted.");
-                    results.all().forEach(r -> say(sender, r.matchId() + " " + r.outcome() + " " + r.reason()
-                            + " bags=" + r.securedBags()));
+                    say(sender, "Results page " + page.number() + "/" + page.pages() + " (" + page.total() + " runs, newest first)");
+                    if (page.entries().isEmpty()) say(sender, "No completed results available yet.");
+                    page.entries().forEach(result -> say(sender, ResultHistory.describe(result)));
+                    if (page.number() < page.pages()) say(sender, "Next: /heist results " + (page.number() + 1));
                 }
                 default -> say(sender, "Unknown command. Use /heist help.");
             }
