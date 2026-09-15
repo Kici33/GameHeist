@@ -10,6 +10,26 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class StatisticsTest {
+    @Test void bestTimeIgnoresLossesAndUntimedWinsAndSurvivesRetries() {
+        var repository = new InMemoryResultRepository(10);
+        repository.save(result(MatchOutcome.WON, AlarmState.STEALTH, player, true));
+        assertTrue(repository.statistics(player, scope).toCompletableFuture().join().bestWinMillis().isEmpty());
+        for (long duration : List.of(90000L, 65000L, 80000L)) {
+            var base = result(MatchOutcome.WON, AlarmState.LOUD, player, true);
+            var timed = new MatchResult(base.matchId(), base.arena(), base.difficulty(), base.seed(), base.practice(),
+                    base.outcome(), base.reason(), base.createdAt(), base.finishedAt(), base.alarm(), base.participants(),
+                    base.completedObjectives(), base.securedBags(), Map.of(), OptionalLong.of(duration));
+            repository.save(timed).toCompletableFuture().join();
+            repository.save(timed).toCompletableFuture().join();
+        }
+        var loss = result(MatchOutcome.LOST, AlarmState.LOUD, player, true);
+        repository.save(new MatchResult(loss.matchId(), loss.arena(), loss.difficulty(), loss.seed(), loss.practice(),
+                loss.outcome(), loss.reason(), loss.createdAt(), loss.finishedAt(), loss.alarm(), loss.participants(),
+                Set.of(), 0, Map.of(), OptionalLong.of(1)));
+        var stats = repository.statistics(player, scope).toCompletableFuture().join();
+        assertEquals(65000, stats.bestWinMillis().orElseThrow());
+        assertEquals(4, stats.wins());
+    }
     @Test void combatTotalsArePersonalRetrySafeAndIncludeHistoricalRuns() {
         var repository = new InMemoryResultRepository(10);
         UUID other = UUID.randomUUID();

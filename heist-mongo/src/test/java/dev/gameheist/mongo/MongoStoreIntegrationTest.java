@@ -15,6 +15,24 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Opt-in isolated fixture only: never reads the application's database URI. */
 @EnabledIfEnvironmentVariable(named = "HEIST_MONGO_TESTS", matches = "true")
 class MongoStoreIntegrationTest {
+    @Test void bestWinUsesOnlyTimedWinsAndMatchesMemory() throws Exception {
+        UUID player = UUID.randomUUID();
+        var scope = new StatisticsScope(new ArenaKey("graybox", 4), Difficulty.NORMAL, 1, true);
+        var memory = new dev.gameheist.runtime.persistence.InMemoryResultRepository(10);
+        for (MatchOutcome outcome : MatchOutcome.values()) {
+            for (var duration : List.of(OptionalLong.empty(), OptionalLong.of(65000), OptionalLong.of(90000))) {
+                var result = new MatchResult(UUID.randomUUID(), scope.arena(), Difficulty.NORMAL, 1, true,
+                        outcome, "timing", Instant.EPOCH, Instant.EPOCH.plusSeconds(90), AlarmState.LOUD,
+                        Map.of(player, Loadout.starter(Role.SCOUT)), Set.of(), 0, Map.of(),
+                        outcome == MatchOutcome.WON ? duration : OptionalLong.of(1));
+                await(store.save(result));
+                await(store.save(result));
+                await(memory.save(result));
+            }
+        }
+        assertEquals(65000, await(store.statistics(player, scope)).bestWinMillis().orElseThrow());
+        assertEquals(await(memory.statistics(player, scope)), await(store.statistics(player, scope)));
+    }
     @Test void combatTotalsMatchMemoryIncludingMissingPersonalAndLegacyStats() throws Exception {
         UUID player = UUID.randomUUID(), other = UUID.randomUUID();
         var roster = Map.of(player, Loadout.starter(Role.SCOUT), other, Loadout.starter(Role.SUPPORT));

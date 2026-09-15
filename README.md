@@ -123,6 +123,8 @@ MongoDB writes use majority acknowledgement, profile revision comparisons, and u
 
 ## Player statistics
 
+`/heist stats` includes the fastest recorded winning run in the selected arena/version/difficulty/crew-size scope. Only wins with measured gameplay time qualify; legacy results and faster losses/aborts do not establish a best time. Memory mode uses retained history, while MongoDB queries saved results.
+
 Clicking the carbine with an empty magazine starts the normal two-second reload. Repeated clicks do not restart it or queue a shot. Manual F remains available for a partial magazine.
 
 While carrying loot, Shift+F returns the bag to its original marker for another crew member to collect. This restores movement speed and clears the cosmetic bag slot without securing loot or creating a dropped item. Plain F remains the carbine reload control.

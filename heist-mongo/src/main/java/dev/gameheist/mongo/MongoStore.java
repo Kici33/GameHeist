@@ -97,7 +97,9 @@ public final class MongoStore implements ProfileRepository, ResultRepository, St
                     .append("bags", new Document("$sum", "$securedBags"))
                     .append("damageDealt", new Document("$sum", "$personalCombat.damageDealt"))
                     .append("damageTaken", new Document("$sum", "$personalCombat.damageTaken"))
-                    .append("revives", new Document("$sum", "$personalCombat.revives"));
+                    .append("revives", new Document("$sum", "$personalCombat.revives"))
+                    .append("bestWinMillis", new Document("$min", new Document("$cond", java.util.Arrays.asList(
+                            new Document("$eq", List.of("$outcome", "WON")), "$gameplayMillis", null))));
             // Filter before grouping: crew contributions must never count toward another player's totals.
             // Missing combatStats on historical results yields zero without dropping the run.
             var personal = new Document("$arrayElemAt", List.of(new Document("$filter", new Document("input",
@@ -109,7 +111,8 @@ public final class MongoStore implements ProfileRepository, ResultRepository, St
             if (row == null) return PlayerStatistics.empty();
             return new PlayerStatistics(number(row, "wins"), number(row, "losses"), number(row, "aborted"),
                     number(row, "stealthWins"), number(row, "bags"), number(row, "damageDealt"),
-                    number(row, "damageTaken"), number(row, "revives"));
+                    number(row, "damageTaken"), number(row, "revives"),
+                    row.get("bestWinMillis") == null ? java.util.OptionalLong.empty() : java.util.OptionalLong.of(number(row, "bestWinMillis")));
         });
     }
     private synchronized void ensureStatisticsIndex() {
