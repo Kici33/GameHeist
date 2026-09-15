@@ -10,6 +10,28 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class StatisticsTest {
+    @Test void bestRecordFollowsEvictionWithoutRetriesRefreshingRetention() {
+        var repository = new InMemoryResultRepository(2);
+        var fast = timedWin(60000);
+        var slow = timedWin(90000);
+        repository.save(fast).toCompletableFuture().join();
+        repository.save(slow).toCompletableFuture().join();
+        repository.save(fast).toCompletableFuture().join();
+        assertEquals(60000, repository.statistics(player, scope).toCompletableFuture().join().bestWinMillis().orElseThrow());
+        repository.save(result(MatchOutcome.LOST, AlarmState.LOUD, player, true)).toCompletableFuture().join();
+        assertEquals(90000, repository.statistics(player, scope).toCompletableFuture().join().bestWinMillis().orElseThrow());
+        repository.save(result(MatchOutcome.WON, AlarmState.STEALTH, player, true)).toCompletableFuture().join();
+        var remaining = repository.statistics(player, scope).toCompletableFuture().join();
+        assertTrue(remaining.bestWinMillis().isEmpty());
+        assertEquals(1, remaining.wins());
+        assertEquals(2, remaining.runs());
+    }
+    private MatchResult timedWin(long duration) {
+        var base = result(MatchOutcome.WON, AlarmState.LOUD, player, true);
+        return new MatchResult(base.matchId(), base.arena(), base.difficulty(), base.seed(), base.practice(),
+                base.outcome(), base.reason(), base.createdAt(), base.finishedAt(), base.alarm(), base.participants(),
+                base.completedObjectives(), base.securedBags(), Map.of(), OptionalLong.of(duration));
+    }
     @Test void bestTimeIgnoresLossesAndUntimedWinsAndSurvivesRetries() {
         var repository = new InMemoryResultRepository(10);
         repository.save(result(MatchOutcome.WON, AlarmState.STEALTH, player, true));
