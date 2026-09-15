@@ -1,5 +1,13 @@
 # Next implementation slices
 
+## Completion status (2026-09-15)
+
+The full game is **not complete**. The graybox practice loop is implemented and builds locally, but has not passed live-client acceptance. Recent implemented work includes medkits/self-and-crew healing, returning loot, crew and revive HUD, hit confirmation, automatic empty-magazine reload, responder warnings, match timing, best winning times, paginated results, and `/heist controls`.
+
+The next gate is the two-player `graybox:4` checklist in `manual-verification.md`: controls, combat, healing/revives, loot/extraction, HUD/resource-pack rendering and audio, and cleanup/inventory restoration. MongoDB integration tests also require the isolated test database; passing the normal build does not mean those opt-in tests ran. Record actual outcomes before calling the prototype accepted.
+
+Full-release work still includes the finished arena, enabled and replay-safe progression/rewards, end-to-end lobby transfers, deployment validation, and performance/balance acceptance. Optional extra weapons or cosmetic polish do not replace these completion gates. Do not describe the implementation as finished while these remain unimplemented or unverified.
+
 1. **Graybox smoke test:** The physical objective slice is implemented in `graybox:2`: security, timed/jamming drill, proximity repairs, loot, extraction voting, and result feedback. Run the 26.1.2 client smoke test before claiming playtest acceptance. This is still a sparse prop layout, not the finished bank map.
 2. **Combat playtest (next priority):** `graybox:4` adds a carbine, telegraphed ranged guard attacks, one bounded responder wave, downed players, Support revives, all-down defeat, and saved combat contributions. Automated rules and build checks pass; run the two-player combat smoke test on a 26.1.2 server. Verify native movement, cover, input events, inventory restoration, and balance. Keep `graybox:3` for damage-free perception tests. Tune the first wave before adding recurring pressure, more weapons, gadgets, or final NPC art.
 3. **Player slice:** Profile loading, preset/settings commands, MongoDB revision writes, and durable match results are implemented. Run the client/restart smoke test. Scoped personal statistics are also implemented from saved results. Next add the unique transactional receipt worker; keep rewards disabled until replay and concurrency tests pass.

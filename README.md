@@ -141,7 +141,7 @@ MongoDB calculates totals from immutable results, separated by player, arena ver
 
 Personal damage dealt, damage taken, and revives are summed across the same saved results, including aborted runs. Other crew members' combat contributions are excluded. Historical results without combat data add zero to these fields while still counting toward runs and outcomes. Use `/heist stats graybox 4 2` for two-player combat practice totals.
 
-This is a personal practice summary, not a leaderboard or reward system. Other individual contributions, playtime, and best times need additional gameplay tracking.
+This is a personal practice summary, not a leaderboard or reward system. Measured run times and scoped best winning times are implemented; other individual objective contributions still need gameplay tracking. Use `/heist controls` for the current in-game control reference.
 
 ## Drain before shutdown
 

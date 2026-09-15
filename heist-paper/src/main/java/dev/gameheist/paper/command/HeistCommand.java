@@ -49,7 +49,7 @@ public final class HeistCommand implements TabExecutor {
 
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         String action = args.length == 0 ? "help" : args[0].toLowerCase(Locale.ROOT);
-        if (!sender.hasPermission("heist.play") || (!Set.of("help", "arenas", "list", "join", "profile", "preset", "settings", "stats").contains(action)
+        if (!sender.hasPermission("heist.play") || (!Set.of("help", "controls", "arenas", "list", "join", "profile", "preset", "settings", "stats").contains(action)
                 && !sender.hasPermission("heist.admin"))) {
             say(sender, "You do not have permission for this action.");
             return true;
@@ -58,7 +58,8 @@ public final class HeistCommand implements TabExecutor {
             switch (action) {
                 case "help" -> say(sender, """
                         GameHeist practice commands (no rewards):
-                        /heist arenas | list | results
+                        /heist arenas | list | controls
+                        /heist results [page]
                         /heist stats <arena-id> <version> <crew-size>
                         /heist profile [reload]
                         /heist preset <1-3> [TECHNICIAN|SCOUT|ENFORCER|SUPPORT]
@@ -71,6 +72,19 @@ public final class HeistCommand implements TabExecutor {
                         /heist guards <instance-uuid>
                         /heist stop <instance-uuid>
                         /heist drain
+                        """);
+                case "controls" -> say(sender, """
+                        GameHeist controls:
+                        Slot 1 carbine: left click to fire; F to reload. Clicking empty starts reload.
+                        Slot 2 medkit: right click air/block to heal yourself, or click a living teammate within 3 blocks.
+                        Medkit: one use per run, up to 40 HP; cannot revive downed players.
+                        Revive: sneak + right click a downed teammate; keep sneaking within 3 blocks with clear sight.
+                        Revive takes 4 seconds (Support: 3); damage interrupts.
+                        Objectives: right click the marker base with a free hand or carbine selected.
+                        Loot: carry to GREEN and right click to secure; Shift+F returns it to its original marker.
+                        Shift+F is reserved for loot return; release sneak to reload with F.
+                        Extraction: after minimum loot, right click GREEN to vote; gather there for departure.
+                        Combat equipment is available in graybox:4. /heist settings sound off mutes plugin effects.
                         """);
                 case "profile", "preset", "settings" -> profileAction(sender, args);
                 case "stats" -> {
@@ -167,8 +181,8 @@ public final class HeistCommand implements TabExecutor {
         if (!sender.hasPermission("heist.play") || args.length == 0) return List.of();
         List<String> choices = List.of();
         if (args.length == 1) choices = sender.hasPermission("heist.admin")
-                ? List.of("help", "arenas", "list", "create", "join", "start", "complete", "alarm", "guards", "stop", "drain", "results", "profile", "preset", "settings", "stats")
-                : List.of("help", "arenas", "list", "join", "profile", "preset", "settings", "stats");
+                ? List.of("help", "controls", "arenas", "list", "create", "join", "start", "complete", "alarm", "guards", "stop", "drain", "results", "profile", "preset", "settings", "stats")
+                : List.of("help", "controls", "arenas", "list", "join", "profile", "preset", "settings", "stats");
         else if (args.length == 2 && (args[0].equalsIgnoreCase("create") || args[0].equalsIgnoreCase("stats"))) {
             choices = arenas.all().stream().map(a -> a.key().id()).distinct().toList();
         } else if (args.length == 3 && (args[0].equalsIgnoreCase("create") || args[0].equalsIgnoreCase("stats"))) {
