@@ -5,4 +5,6 @@
 run/
 .env
 *.log
+__pycache__/
+*.pyc
 !gradle/wrapper/gradle-wrapper.jar

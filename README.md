@@ -115,7 +115,7 @@ Players load their profile on connection. `/heist profile` shows the acknowledge
 - `/heist preset 1` selects an existing slot.
 - `/heist join <uuid>` captures the selected saved loadout. The optional role argument remains a practice-only override and does not edit the profile.
 - `/heist settings sound off` disables plugin alarm, carbine, and drill effects, including their fallback sounds. It does not mute unrelated vanilla Minecraft sounds.
-- `/heist settings particles off` saves a reduced-particles preference for future effects; no custom particle effects currently consume it. Language remains English. Equipment uses the starter carbine/medkit catalog: the carbine functions in combat arenas, while the medkit remains a placeholder.
+- `/heist settings particles off` saves a reduced-particles preference for future effects; no custom particle effects currently consume it. Language remains English. Equipment uses the starter carbine/medkit catalog; both work in combat arenas, including self/crew healing.
 
 Storage defaults to explicit development memory mode. For persistence, set `storage.mode: mongodb` and `storage.database: gameheist` in the plugin configuration, and supply `HEIST_MONGODB_URI` in the server process environment. Keep credentials in deployment secrets, never in tracked configuration. Restart after changing storage mode. Existing memory data is not migrated. MongoDB failure never switches storage back to memory.
 

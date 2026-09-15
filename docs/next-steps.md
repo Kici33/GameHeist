@@ -1,5 +1,7 @@
 # Next implementation slices
 
+See [the final remaining-work checklist](remaining-work.md) for the complete handoff, including missing gameplay and release acceptance gates.
+
 ## Completion status (2026-09-15)
 
 The full game is **not complete**. The graybox practice loop is implemented and builds locally, but has not passed live-client acceptance. Recent implemented work includes medkits/self-and-crew healing, returning loot, crew and revive HUD, hit confirmation, automatic empty-magazine reload, responder warnings, match timing, best winning times, paginated results, and `/heist controls`.

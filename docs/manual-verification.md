@@ -4,6 +4,12 @@ Run this against a dedicated Paper 26.1.2 server and matching vanilla client. Th
 
 ## Startup and artifact
 
+After startup, run `python ops/server/check-local.py` from the repository. This reads `/live` and `/ready` on localhost port 8081 (override with `--port`) and writes `build/local-readiness.json`. Exit code 0 means both endpoints passed schema and readiness checks; a stopped, draining, or unhealthy server returns 1. It never starts/stops the server or requests drain. This is an HTTP readiness report, not gameplay acceptance. Test the checker with `python -m unittest discover -s ops/server -p test_check_local.py`.
+
+On Windows, run `.\gradlew.bat build`, then `.\ops\server\prepare-local.ps1`. This creates `build/local-server` with checksum-verified Paper 26.1.2 build 74, the current plugin, pack ZIP, and startup instructions. It refuses existing destinations; use `-Destination` for another isolated run. `-PaperJar` can supply the same pinned server artifact locally. EULA stays false and no server is launched by preparation.
+
+Read the Minecraft EULA and, if you accept, edit the generated `eula.txt` yourself. Launch `build/local-server/start-local.ps1` with Java 25. The default bind is localhost, authenticated accounts are required, and the generated `TEST-RUN.md` covers operator assignment and two-player setup. Connecting from another computer requires an explicit private-network bind/firewall configuration. Follow the checklist below; staging artifacts alone is not gameplay acceptance.
+
 - Install the bundled Paper jar, not the domain/runtime jars.
 - Verify successful initialization and the practice-only/development-pack warning.
 - Check `/heist arenas` lists `graybox:1`, `graybox:2`, `graybox:3`, and `graybox:4`.
