@@ -77,6 +77,25 @@ public final class ProfileSessions {
         return entry == null || entry.profile == null || entry.profile.settings().soundEnabled();
     }
 
+    public PlayerSettings settings(UUID player) {
+        checkThread();
+        var entry = sessions.get(player);
+        return entry == null || entry.profile == null ? PlayerSettings.defaults() : entry.profile.settings();
+    }
+
+    public enum Status { LOADING, READY, FAILED }
+    public Status status(UUID player) {
+        checkThread();
+        var entry = sessions.get(player);
+        if (entry == null || entry.failed) return Status.FAILED;
+        return entry.pending != null || entry.profile == null ? Status.LOADING : Status.READY;
+    }
+
+    public void edit(UUID player, long expectedRevision, UnaryOperator<PlayerProfile> update) {
+        if (require(player).revision() != expectedRevision) throw new IllegalStateException("Profile changed; reopen the menu");
+        edit(player, update);
+    }
+
     public void reload(UUID player) {
         checkThread();
         if (draining) throw new IllegalStateException("Server is draining; profile reload is closed");

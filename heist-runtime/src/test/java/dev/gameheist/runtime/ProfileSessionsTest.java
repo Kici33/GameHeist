@@ -8,6 +8,38 @@ import java.util.concurrent.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ProfileSessionsTest {
+    @Test void staleMenuRevisionCannotOverwriteNewerSavedPreferences() {
+        ready();
+        sessions.edit(player, 0, this::scout);
+        assertEquals(ProfileSessions.Status.LOADING, sessions.status(player));
+        repository.write.complete(null);
+        sessions.tick();
+        assertEquals(ProfileSessions.Status.READY, sessions.status(player));
+        assertThrows(IllegalStateException.class, () -> sessions.edit(player, 0, this::scout));
+        assertEquals(1, sessions.require(player).revision());
+    }
+
+    @Test void disconnectedMenuCannotEditOrReceiveOldLoadCompletion() {
+        sessions.open(player);
+        assertEquals(ProfileSessions.Status.LOADING, sessions.status(player));
+        sessions.close(player);
+        assertEquals(ProfileSessions.Status.FAILED, sessions.status(player));
+        repository.loads.getFirst().complete(PlayerProfile.starter(player));
+        sessions.tick();
+        assertThrows(IllegalStateException.class, () -> sessions.edit(player, 0, this::scout));
+        sessions.open(player);
+        assertEquals(ProfileSessions.Status.LOADING, sessions.status(player));
+    }
+
+    @Test void failedSaveShowsFailureUntilExplicitReload() {
+        ready();
+        sessions.edit(player, 0, this::scout);
+        repository.write.completeExceptionally(new IllegalStateException("offline"));
+        sessions.tick();
+        assertEquals(ProfileSessions.Status.FAILED, sessions.status(player));
+        sessions.reload(player);
+        assertEquals(ProfileSessions.Status.LOADING, sessions.status(player));
+    }
     private final UUID player = UUID.randomUUID();
     private final DeferredRepository repository = new DeferredRepository();
     private final ProfileSessions sessions = new ProfileSessions(repository, LoadoutCatalog.starter());

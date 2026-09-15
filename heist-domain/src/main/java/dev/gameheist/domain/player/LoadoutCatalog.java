@@ -8,7 +8,7 @@ public record LoadoutCatalog(Set<String> weapons, Set<String> gadgets) {
         gadgets = Set.copyOf(gadgets);
     }
     public void validate(Loadout loadout) {
-        if (!weapons.contains(loadout.weaponId()) || !gadgets.contains(loadout.gadgetId())) {
+        if (!weapons.contains(loadout.weaponId()) || !gadgets.contains(loadout.gadgetId()) || !loadout.cosmeticId().equals("default")) {
             throw new IllegalArgumentException("Unknown loadout equipment");
         }
     }

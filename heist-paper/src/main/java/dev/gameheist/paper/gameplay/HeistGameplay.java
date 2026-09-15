@@ -27,14 +27,16 @@ public final class HeistGameplay {
     private final ArenaRegistry arenas;
     private final PlayerSessions players;
     private final HeistAudio audio;
+    private final dev.gameheist.runtime.persistence.ProfileSessions profiles;
     private final Map<UUID, Presentation> presentations = new HashMap<>();
     private long ticks;
 
-    public HeistGameplay(InstanceManager instances, ArenaRegistry arenas, PlayerSessions players, HeistAudio audio) {
+    public HeistGameplay(InstanceManager instances, ArenaRegistry arenas, PlayerSessions players, HeistAudio audio, dev.gameheist.runtime.persistence.ProfileSessions profiles) {
         this.instances = instances;
         this.arenas = arenas;
         this.players = players;
         this.audio = audio;
+        this.profiles = profiles;
     }
 
     public void interact(PlayerInteractEvent event) {
@@ -99,7 +101,7 @@ public final class HeistGameplay {
                 for (UUID playerId : present.keySet()) {
                     Player player = Bukkit.getPlayer(playerId);
                     if (player == null) continue;
-                    player.showTitle(Title.title(Component.text("RESPONDERS IN " + warning.getAsLong() + "s", NamedTextColor.GOLD),
+                    if (!profiles.settings(playerId).reducedMotion()) player.showTitle(Title.title(Component.text("RESPONDERS IN " + warning.getAsLong() + "s", NamedTextColor.GOLD),
                             Component.text("Find cover and prepare your crew"),
                             Title.Times.times(Duration.ofMillis(100), Duration.ofMillis(1200), Duration.ofMillis(200))));
                     player.sendMessage(Component.text("Responders approaching — find cover!", NamedTextColor.GOLD));
@@ -259,8 +261,8 @@ public final class HeistGameplay {
                 crewBar.color(CrewStatus.needsRescue(playerId, crew) ? BossBar.Color.RED : BossBar.Color.GREEN);
             }
             player.sendActionBar(Component.text(status, NamedTextColor.YELLOW));
-            if (view.lastPhase != instance.match().phase()) {
-                player.sendMessage(Component.text("Heist phase: " + instance.match().phase(), NamedTextColor.AQUA));
+            if (view.lastPhase != instance.match().phase() && profiles.settings(playerId).notificationsEnabled()) {
+                player.sendMessage(Component.text((profiles.settings(playerId).language().equals("pl") ? "Faza napadu: " : "Heist phase: ") + instance.match().phase(), NamedTextColor.AQUA));
             }
         }
         view.lastPhase = instance.match().phase();
@@ -273,11 +275,14 @@ public final class HeistGameplay {
         for (UUID playerId : result.participants().keySet()) {
             Player player = Bukkit.getPlayer(playerId);
             if (player == null) continue;
-            player.showTitle(Title.title(Component.text("HEIST " + result.outcome()),
+            if (!profiles.settings(playerId).reducedMotion()) player.showTitle(Title.title(Component.text("HEIST " + result.outcome()),
                     Component.text(result.securedBags() + " bags secured · Practice run"),
                     Title.Times.times(Duration.ofMillis(200), Duration.ofSeconds(3), Duration.ofMillis(500))));
             player.sendMessage(Component.text("Practice result: " + result.outcome() + " (" + result.reason()
                     + "), " + result.securedBags() + " bags. No progression rewards.", NamedTextColor.AQUA));
+            // Optional celebratory effects are sent per viewer, never broadcast to the world.
+            if (result.outcome() == dev.gameheist.domain.match.MatchOutcome.WON && !profiles.settings(playerId).reducedParticles()) player.spawnParticle(Particle.HAPPY_VILLAGER,
+                    player.getLocation().add(0, 1, 0), 8, .4, .4, .4, 0);
             var contribution = result.combatStats().get(playerId);
             result.gameplayMillis().ifPresent(duration -> player.sendMessage(Component.text(
                     "Run time: " + RunTimeFormat.format(duration), NamedTextColor.AQUA)));

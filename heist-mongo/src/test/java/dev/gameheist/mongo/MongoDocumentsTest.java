@@ -7,6 +7,24 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class MongoDocumentsTest {
+    @Test void roundTripsNamedPresetsAndAccessibilityPreferences() {
+        var profile = new PlayerProfile(UUID.randomUUID(), 7,
+                List.of(new Loadout(Role.SUPPORT, "carbine", "medkit", "Ekipa medyczna", "default")), 0,
+                new PlayerSettings("pl", false, true, true, false));
+        assertEquals(profile, MongoDocuments.profile(Document.parse(MongoDocuments.profile(profile).toJson())));
+        assertEquals(profile.selectedLoadout(), MongoDocuments.loadout(MongoDocuments.loadout(profile.selectedLoadout())));
+    }
+
+    @Test void oldProfileDefaultsNewPreferencesWithoutResettingExistingOnes() {
+        var old = new PlayerProfile(UUID.randomUUID(), 13, List.of(Loadout.starter(Role.SCOUT)), 0,
+                new PlayerSettings("pl", false, true));
+        var document = MongoDocuments.profile(old);
+        var settings = document.get("settings", Document.class);
+        settings.remove("reducedMotion");
+        settings.remove("notificationsEnabled");
+        assertEquals(old, MongoDocuments.profile(document));
+        assertEquals(Set.of("role", "weapon", "gadget"), MongoDocuments.loadout(old.selectedLoadout()).keySet());
+    }
     @Test void roundTripsEveryPresetAndSetting() {
         var profile = new PlayerProfile(UUID.randomUUID(), 42, List.of(Loadout.starter(Role.SCOUT),
                 Loadout.starter(Role.SUPPORT), Loadout.starter(Role.ENFORCER)), 2, new PlayerSettings("en", false, true));

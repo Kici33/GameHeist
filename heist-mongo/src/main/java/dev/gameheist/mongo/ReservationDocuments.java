@@ -27,8 +27,7 @@ final class ReservationDocuments {
         Map<UUID, Loadout> crew = new HashMap<>();
         for (var member : value.getList("crew", Document.class)) {
             var loadout = member.get("loadout", Document.class);
-            crew.put(UUID.fromString(member.getString("playerId")), new Loadout(Role.valueOf(loadout.getString("role")),
-                    loadout.getString("weapon"), loadout.getString("gadget")));
+            crew.put(UUID.fromString(member.getString("playerId")), MongoDocuments.loadout(loadout));
         }
         var arena = value.get("arena", Document.class);
         var request = new CrewReservation(UUID.fromString(value.getString("_id")), new ArenaKey(arena.getString("id"), arena.getInteger("version")),

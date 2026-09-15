@@ -31,9 +31,10 @@ public final class HeistCommand implements TabExecutor {
     private final boolean durable;
     private final StatisticsView statistics;
     private final DrainController drain;
+    private final dev.gameheist.paper.menu.PlayerMenus menus;
 
     public HeistCommand(InstanceManager instances, ArenaRegistry arenas, ResourcePackGate packs,
-                        PlayerSessions players, InMemoryResultRepository results, Logger logger, GuardController guards, ProfileSessions profiles, boolean durable, StatisticsView statistics, DrainController drain) {
+                        PlayerSessions players, InMemoryResultRepository results, Logger logger, GuardController guards, ProfileSessions profiles, boolean durable, StatisticsView statistics, DrainController drain, dev.gameheist.paper.menu.PlayerMenus menus) {
         this.instances = instances;
         this.arenas = arenas;
         this.packs = packs;
@@ -45,11 +46,12 @@ public final class HeistCommand implements TabExecutor {
         this.durable = durable;
         this.statistics = statistics;
         this.drain = drain;
+        this.menus = menus;
     }
 
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        String action = args.length == 0 ? "help" : args[0].toLowerCase(Locale.ROOT);
-        if (!sender.hasPermission("heist.play") || (!Set.of("help", "controls", "arenas", "list", "join", "profile", "preset", "settings", "stats").contains(action)
+        String action = args.length == 0 ? "menu" : args[0].toLowerCase(Locale.ROOT);
+        if (!sender.hasPermission("heist.play") || (!Set.of("help", "controls", "arenas", "list", "join", "profile", "preset", "presetname", "menu", "settings", "stats").contains(action)
                 && !sender.hasPermission("heist.admin"))) {
             say(sender, "You do not have permission for this action.");
             return true;
@@ -63,7 +65,10 @@ public final class HeistCommand implements TabExecutor {
                         /heist stats <arena-id> <version> <crew-size>
                         /heist profile [reload]
                         /heist preset <1-3> [TECHNICIAN|SCOUT|ENFORCER|SUPPORT]
-                        /heist settings <sound|particles> <on|off>
+                        /heist menu [home|crew|queue|loadout|settings|results]
+                        /heist presetname <1-3> <name>
+                        /heist settings <sound|particles|motion|notifications> <on|off>
+                        /heist settings language <en|pl>
                         /heist create <arena-id> <version>
                         /heist join <instance-uuid> [TECHNICIAN|SCOUT|ENFORCER|SUPPORT]
                         /heist start <instance-uuid>
@@ -86,7 +91,11 @@ public final class HeistCommand implements TabExecutor {
                         Extraction: after minimum loot, right click GREEN to vote; gather there for departure.
                         Combat equipment is available in graybox:4. /heist settings sound off mutes plugin effects.
                         """);
-                case "profile", "preset", "settings" -> profileAction(sender, args);
+                case "menu" -> {
+                    if (!(sender instanceof Player player)) throw new IllegalStateException("Menus require a player");
+                    menus.open(player, args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "home");
+                }
+                case "profile", "preset", "presetname", "settings" -> profileAction(sender, args);
                 case "stats" -> {
                     requireArgs(args, 4);
                     if (!(sender instanceof Player player)) throw new IllegalStateException("Statistics require a player");
@@ -181,8 +190,8 @@ public final class HeistCommand implements TabExecutor {
         if (!sender.hasPermission("heist.play") || args.length == 0) return List.of();
         List<String> choices = List.of();
         if (args.length == 1) choices = sender.hasPermission("heist.admin")
-                ? List.of("help", "controls", "arenas", "list", "create", "join", "start", "complete", "alarm", "guards", "stop", "drain", "results", "profile", "preset", "settings", "stats")
-                : List.of("help", "controls", "arenas", "list", "join", "profile", "preset", "settings", "stats");
+                ? List.of("help", "controls", "arenas", "list", "create", "join", "start", "complete", "alarm", "guards", "stop", "drain", "results", "profile", "preset", "presetname", "menu", "settings", "stats")
+                : List.of("help", "controls", "arenas", "list", "join", "profile", "preset", "presetname", "menu", "settings", "stats");
         else if (args.length == 2 && (args[0].equalsIgnoreCase("create") || args[0].equalsIgnoreCase("stats"))) {
             choices = arenas.all().stream().map(a -> a.key().id()).distinct().toList();
         } else if (args.length == 3 && (args[0].equalsIgnoreCase("create") || args[0].equalsIgnoreCase("stats"))) {
@@ -197,6 +206,9 @@ public final class HeistCommand implements TabExecutor {
                         .objectives().stream().map(o -> o.id()).toList();
             } catch (IllegalArgumentException ignored) { return List.of(); }
         }
+        if (args.length == 2 && args[0].equalsIgnoreCase("menu")) choices = List.of("home", "crew", "queue", "loadout", "settings", "results");
+        if (args.length == 2 && args[0].equalsIgnoreCase("settings")) choices = List.of("language", "sound", "particles", "motion", "notifications");
+        if (args.length == 3 && args[0].equalsIgnoreCase("settings")) choices = args[1].equalsIgnoreCase("language") ? List.of("en", "pl") : List.of("on", "off");
         if (args.length == 4 && args[0].equalsIgnoreCase("stats")) choices = List.of("1", "2", "3", "4");
         String prefix = args[args.length - 1].toLowerCase(Locale.ROOT);
         return choices.stream().filter(s -> s.toLowerCase(Locale.ROOT).startsWith(prefix)).toList();
@@ -208,7 +220,7 @@ public final class HeistCommand implements TabExecutor {
         if (action.equals("profile") && args.length == 1) {
             var profile = profiles.require(id);
             say(sender, "Profile revision " + profile.revision() + "; selected preset=" + (profile.selectedPreset() + 1)
-                    + "; sound=" + profile.settings().soundEnabled() + "; reduced particles=" + profile.settings().reducedParticles());
+                    + "; settings=" + profile.settings());
             for (int slot = 0; slot < profile.presets().size(); slot++) say(sender, (slot + 1) + ": " + profile.presets().get(slot));
             return;
         }
@@ -219,7 +231,18 @@ public final class HeistCommand implements TabExecutor {
             say(sender, "Profile reload requested; use /heist profile to check completion.");
             return;
         }
-        if (action.equals("preset")) {
+        if (action.equals("presetname")) {
+            requireArgs(args, 3);
+            int slot = Integer.parseInt(args[1]) - 1;
+            String name = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
+            profiles.edit(id, current -> {
+                if (slot < 0 || slot >= current.presets().size()) throw new IllegalArgumentException("Create the preset first");
+                var presets = new ArrayList<>(current.presets());
+                var old = presets.get(slot);
+                presets.set(slot, new Loadout(old.role(), old.weaponId(), old.gadgetId(), name, old.cosmeticId()));
+                return new PlayerProfile(id, Math.incrementExact(current.revision()), presets, current.selectedPreset(), current.settings());
+            });
+        } else if (action.equals("preset")) {
             requireArgs(args, 2);
             int slot = Integer.parseInt(args[1]) - 1;
             if (slot < 0 || slot > 2) throw new IllegalArgumentException("Preset slot must be 1-3");
@@ -228,21 +251,16 @@ public final class HeistCommand implements TabExecutor {
                 var presets = new ArrayList<>(current.presets());
                 if (role != null) {
                     while (presets.size() <= slot) presets.add(Loadout.starter(Role.TECHNICIAN));
-                    presets.set(slot, Loadout.starter(role));
+                    var old = presets.get(slot);
+                    presets.set(slot, new Loadout(role, old.weaponId(), old.gadgetId(), old.name(), old.cosmeticId()));
                 } else if (slot >= presets.size()) throw new IllegalArgumentException("Create that preset by specifying a role");
                 return new PlayerProfile(id, Math.incrementExact(current.revision()), presets, slot, current.settings());
             });
         } else {
             requireArgs(args, 3);
-            if (!Set.of("on", "off").contains(args[2].toLowerCase(Locale.ROOT))) throw new IllegalArgumentException("Value must be on or off");
-            boolean enabled = args[2].equalsIgnoreCase("on");
+
             profiles.edit(id, current -> {
-                var old = current.settings();
-                var settings = switch (args[1].toLowerCase(Locale.ROOT)) {
-                    case "sound" -> new PlayerSettings(old.language(), enabled, old.reducedParticles());
-                    case "particles" -> new PlayerSettings(old.language(), old.soundEnabled(), !enabled);
-                    default -> throw new IllegalArgumentException("Setting must be sound or particles");
-                };
+                var settings = current.settings().change(args[1].toLowerCase(Locale.ROOT), args[2].toLowerCase(Locale.ROOT));
                 return new PlayerProfile(id, Math.incrementExact(current.revision()), current.presets(), current.selectedPreset(), settings);
             });
         }
