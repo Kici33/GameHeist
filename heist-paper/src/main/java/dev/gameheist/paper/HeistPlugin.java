@@ -81,9 +81,11 @@ public final class HeistPlugin extends JavaPlugin {
             var combat = new CombatController(instances, players, guards, getLogger(), audio, gameplay);
             var statistics = new StatisticsView(storage != null ? storage : results, storage != null);
             var command = Objects.requireNonNull(getCommand("heist"));
+            var progression = new dev.gameheist.paper.command.ProgressionView(storage == null ? null : storage.rewards(), getLogger());
+            Bukkit.getPluginManager().registerEvents(progression, this);
             var menus = new dev.gameheist.paper.menu.PlayerMenus(this, profiles, instances, results);
             Bukkit.getPluginManager().registerEvents(menus, this);
-            var executor = new HeistCommand(instances, arenas, packs, players, results, getLogger(), guards, profiles, storage != null, statistics, drain, menus);
+            var executor = new HeistCommand(instances, arenas, packs, players, results, getLogger(), guards, profiles, storage != null, statistics, drain, menus, progression);
             command.setExecutor(executor);
             command.setTabCompleter(executor);
             Bukkit.getPluginManager().registerEvents(packs, this);
@@ -117,6 +119,7 @@ public final class HeistPlugin extends JavaPlugin {
                 profiles.tick();
                 menus.tick();
                 statistics.tick();
+                progression.tick();
                 guards.tick();
                 combat.tick();
                 gameplay.tick();

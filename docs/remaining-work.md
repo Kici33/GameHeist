@@ -23,7 +23,7 @@ The practice prototype is implemented but not accepted through real-client testi
 
 ## Player progression and persistence
 
-- Transactional idempotent reward receipts and recovery worker; unlocks, cosmetics/sidegrades, validation and saved/pending reward presentation. Rewards remain disabled.
+- Transactional reward acceptance, receipts, durable recovery and XP/cosmetic unlock references now exist, with six replica-set integration tests including 100 replays and rollback. Finish production transport/profile-lease integration, equippable cosmetic UI and real-client saved/pending acceptance. Practice rewards remain disabled. See [reward implementation and verification](rewards.md).
 - Network-wide profile leases/session ownership, stale generation rejection across coordinator/result writes, reconciliation and documented crash-loss handling.
 - Validate the implemented crew/practice-session/loadout/settings/personal-results menus on a real client. Named presets, default cosmetic references, PL/EN menu labels and sound/particle/motion/notification preferences are implemented; full gameplay localization, progression-driven cosmetic choices and network matchmaking remain. See [menu behavior and acceptance checklist](player-menus.md).
 - Individual objective contributions and aggregate playtime, production-only leaderboard eligibility/caching, retained detailed history policies. Damage/revives, per-run duration and scoped best winning times already exist.

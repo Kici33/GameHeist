@@ -37,6 +37,7 @@ jobs:
           --health-retries 12
     env:
       HEIST_MONGO_TESTS: 'true'
+      HEIST_REWARD_TESTS: 'true'
       HEIST_INFLUX_TESTS: 'true'
       HEIST_INFLUX_TEST_TOKEN: ci-disposable-token
     steps:
@@ -45,6 +46,14 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
+      - name: Start disposable reward replica set
+        run: |
+          docker run -d --name heist-reward-tests -p 127.0.0.1:27029:27029 mongo:8.0.12 --replSet heist-test --bind_ip_all --port 27029
+          for attempt in $(seq 1 30); do
+            if docker exec heist-reward-tests mongosh --port 27029 --quiet --eval 'db.adminCommand({ping:1})'; then exit 0; fi
+            sleep 1
+          done
+          exit 1
       - name: Build and run regression tests
         run: bash ./gradlew clean build --no-daemon
       - name: Test local readiness checker

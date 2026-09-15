@@ -31,10 +31,11 @@ public final class HeistCommand implements TabExecutor {
     private final boolean durable;
     private final StatisticsView statistics;
     private final DrainController drain;
+    private final ProgressionView progression;
     private final dev.gameheist.paper.menu.PlayerMenus menus;
 
     public HeistCommand(InstanceManager instances, ArenaRegistry arenas, ResourcePackGate packs,
-                        PlayerSessions players, InMemoryResultRepository results, Logger logger, GuardController guards, ProfileSessions profiles, boolean durable, StatisticsView statistics, DrainController drain, dev.gameheist.paper.menu.PlayerMenus menus) {
+                        PlayerSessions players, InMemoryResultRepository results, Logger logger, GuardController guards, ProfileSessions profiles, boolean durable, StatisticsView statistics, DrainController drain, dev.gameheist.paper.menu.PlayerMenus menus, ProgressionView progression) {
         this.instances = instances;
         this.arenas = arenas;
         this.packs = packs;
@@ -47,11 +48,12 @@ public final class HeistCommand implements TabExecutor {
         this.statistics = statistics;
         this.drain = drain;
         this.menus = menus;
+        this.progression = progression;
     }
 
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         String action = args.length == 0 ? "menu" : args[0].toLowerCase(Locale.ROOT);
-        if (!sender.hasPermission("heist.play") || (!Set.of("help", "controls", "arenas", "list", "join", "profile", "preset", "presetname", "menu", "settings", "stats").contains(action)
+        if (!sender.hasPermission("heist.play") || (!Set.of("help", "controls", "arenas", "list", "join", "profile", "preset", "presetname", "menu", "progression", "settings", "stats").contains(action)
                 && !sender.hasPermission("heist.admin"))) {
             say(sender, "You do not have permission for this action.");
             return true;
@@ -63,7 +65,7 @@ public final class HeistCommand implements TabExecutor {
                         /heist arenas | list | controls
                         /heist results [page]
                         /heist stats <arena-id> <version> <crew-size>
-                        /heist profile [reload]
+                        /heist profile [reload] | /heist progression
                         /heist preset <1-3> [TECHNICIAN|SCOUT|ENFORCER|SUPPORT]
                         /heist menu [home|crew|queue|loadout|settings|results]
                         /heist presetname <1-3> <name>
@@ -91,6 +93,10 @@ public final class HeistCommand implements TabExecutor {
                         Extraction: after minimum loot, right click GREEN to vote; gather there for departure.
                         Combat equipment is available in graybox:4. /heist settings sound off mutes plugin effects.
                         """);
+                case "progression" -> {
+                    if (!(sender instanceof Player player)) throw new IllegalStateException("Progression requires a player");
+                    progression.request(player);
+                }
                 case "menu" -> {
                     if (!(sender instanceof Player player)) throw new IllegalStateException("Menus require a player");
                     menus.open(player, args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "home");
@@ -190,8 +196,8 @@ public final class HeistCommand implements TabExecutor {
         if (!sender.hasPermission("heist.play") || args.length == 0) return List.of();
         List<String> choices = List.of();
         if (args.length == 1) choices = sender.hasPermission("heist.admin")
-                ? List.of("help", "controls", "arenas", "list", "create", "join", "start", "complete", "alarm", "guards", "stop", "drain", "results", "profile", "preset", "presetname", "menu", "settings", "stats")
-                : List.of("help", "controls", "arenas", "list", "join", "profile", "preset", "presetname", "menu", "settings", "stats");
+                ? List.of("help", "controls", "arenas", "list", "create", "join", "start", "complete", "alarm", "guards", "stop", "drain", "results", "profile", "preset", "presetname", "menu", "progression", "settings", "stats")
+                : List.of("help", "controls", "arenas", "list", "join", "profile", "preset", "presetname", "menu", "progression", "settings", "stats");
         else if (args.length == 2 && (args[0].equalsIgnoreCase("create") || args[0].equalsIgnoreCase("stats"))) {
             choices = arenas.all().stream().map(a -> a.key().id()).distinct().toList();
         } else if (args.length == 3 && (args[0].equalsIgnoreCase("create") || args[0].equalsIgnoreCase("stats"))) {

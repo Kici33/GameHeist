@@ -5,4 +5,5 @@ dependencies {
 }
 tasks.test {
     inputs.property("mongoIntegration", providers.environmentVariable("HEIST_MONGO_TESTS").orElse("false"))
+    inputs.property("rewardIntegration", providers.environmentVariable("HEIST_REWARD_TESTS").orElse("false"))
 }

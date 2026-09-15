@@ -20,6 +20,7 @@ public final class MongoStore implements ProfileRepository, ResultRepository, St
     private final MongoCollection<Document> profiles;
     private final MongoCollection<Document> results;
     private final MongoReservations reservations;
+    private final MongoRewards rewards;
     private boolean statisticsIndexReady;
     private final ThreadPoolExecutor workers = new ThreadPoolExecutor(2, 2, 0, TimeUnit.SECONDS,
             new ArrayBlockingQueue<>(128), Thread.ofPlatform().daemon().name("heist-storage-", 0).factory(),
@@ -39,6 +40,7 @@ public final class MongoStore implements ProfileRepository, ResultRepository, St
         profiles = client.getDatabase(database).getCollection("profiles");
         results = client.getDatabase(database).getCollection("match_results");
         reservations = new MongoReservations(client.getDatabase(database).getCollection("reservations"), this);
+        rewards = new MongoRewards(this, client, client.getDatabase(database));
     }
     @Override public CompletionStage<PlayerProfile> loadOrCreate(UUID playerId) {
         return submit(() -> {
@@ -130,6 +132,7 @@ public final class MongoStore implements ProfileRepository, ResultRepository, St
         return ((Number) value).longValue();
     }
     public ReservationRepository reservations() { return reservations; }
+    public MongoRewards rewards() { return rewards; }
     <T> CompletableFuture<T> submit(Supplier<T> operation) {
         try { return CompletableFuture.supplyAsync(operation, workers); }
         catch (RejectedExecutionException failure) { return CompletableFuture.failedFuture(failure); }
