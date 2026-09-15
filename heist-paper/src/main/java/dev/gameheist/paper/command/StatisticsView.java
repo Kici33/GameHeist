@@ -41,12 +41,12 @@ public final class StatisticsView implements Listener {
                 try {
                     if (!request.future.isDone()) throw new IllegalStateException("Statistics timed out");
                     var stats = request.future.join();
-                    String best = stats.bestWinMillis().isPresent() ? stats.bestWinMillis().getAsLong() / 60_000 + ":"
-                            + String.format(Locale.ROOT, "%02d", stats.bestWinMillis().getAsLong() / 1000 % 60) : "no timed win yet";
-                    request.player.sendMessage(Component.text("Best winning run: " + best));
+                    String best = stats.bestWinMillis().isPresent()
+                            ? dev.gameheist.paper.gameplay.RunTimeFormat.format(stats.bestWinMillis().getAsLong()) : "no timed win yet";
                     request.player.sendMessage(Component.text("Practice statistics: " + request.scope.arena()
                             + " / " + request.scope.difficulty() + " / crew " + request.scope.crewSize()
                             + (durable ? " (saved results)" : " (recent memory history only)")));
+                    request.player.sendMessage(Component.text("Best winning run: " + best));
                     request.player.sendMessage(Component.text("Runs=" + stats.runs() + "; wins=" + stats.wins()
                             + "; losses=" + stats.losses() + "; aborted=" + stats.aborted()
                             + "; stealth wins=" + stats.stealthWins() + "; crew bags=" + stats.crewSecuredBags()));

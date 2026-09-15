@@ -280,7 +280,7 @@ public final class HeistGameplay {
                     + "), " + result.securedBags() + " bags. No progression rewards.", NamedTextColor.AQUA));
             var contribution = result.combatStats().get(playerId);
             result.gameplayMillis().ifPresent(duration -> player.sendMessage(Component.text(
-                    "Run time: " + duration / 60_000 + ":" + String.format(Locale.ROOT, "%02d", duration / 1000 % 60), NamedTextColor.AQUA)));
+                    "Run time: " + RunTimeFormat.format(duration), NamedTextColor.AQUA)));
             if (contribution != null) player.sendMessage(Component.text("Your contribution: " + contribution.revives()
                     + " revives · " + contribution.damageDealt() + " damage dealt · " + contribution.damageTaken() + " damage taken", NamedTextColor.AQUA));
         }
