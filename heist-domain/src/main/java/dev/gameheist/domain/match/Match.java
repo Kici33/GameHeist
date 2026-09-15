@@ -109,7 +109,9 @@ public final class Match {
     }
 
     public MatchSnapshot snapshot() {
-        return new MatchSnapshot(id, arena.key(), phase, alarm, participants, completed, Optional.ofNullable(result));
+        return new MatchSnapshot(id, arena.key(), phase, alarm, participants, completed, Optional.ofNullable(result),
+                phase.gameplay() && deadline != null ? OptionalLong.of(Math.max(0,
+                        java.time.Duration.between(clock.instant(), deadline).toMillis())) : OptionalLong.empty());
     }
 
     public MatchPhase phase() { return phase; }

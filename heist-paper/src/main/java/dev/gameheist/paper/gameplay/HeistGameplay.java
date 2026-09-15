@@ -201,8 +201,13 @@ public final class HeistGameplay {
         var combat = instances.combatSnapshot(instance.match().id());
         String responders = combat.filter(snapshot -> snapshot.waveRemainingMillis().isPresent())
                 .map(snapshot -> " · Responders in " + seconds(snapshot.waveRemainingMillis().orElseThrow()) + "s").orElse("");
-        view.bar.name(Component.text(instance.match().alarm() + " · " + instruction + responders));
-        view.bar.color(state.jammed() ? BossBar.Color.RED : state.extracting() ? BossBar.Color.GREEN : BossBar.Color.BLUE);
+        var remaining = instance.match().remainingMillis();
+        long secondsLeft = remaining.isPresent() ? seconds(remaining.getAsLong()) : 0;
+        String timer = remaining.isPresent() ? " · Time " + secondsLeft / 60 + ":"
+                + String.format(Locale.ROOT, "%02d", secondsLeft % 60) : "";
+        view.bar.name(Component.text(instance.match().alarm() + timer + " · " + instruction + responders));
+        boolean urgent = remaining.isPresent() && remaining.getAsLong() <= 60_000;
+        view.bar.color(state.jammed() || urgent ? BossBar.Color.RED : state.extracting() ? BossBar.Color.GREEN : BossBar.Color.BLUE);
         view.bar.progress(Math.min(1f, state.securedBags() / (float) state.requiredBags()));
         List<CrewStatus.Member> crew = new ArrayList<>();
         if (combat.isPresent()) {

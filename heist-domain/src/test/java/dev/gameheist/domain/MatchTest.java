@@ -8,6 +8,20 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 class MatchTest {
+    @Test void countdownBeginsAtStartAndUsesTheActualDeadline() {
+        assertTrue(match.snapshot().remainingMillis().isEmpty());
+        clock.advance(Duration.ofSeconds(20));
+        start();
+        long duration = Fixtures.arena().timeLimit().toMillis();
+        assertEquals(duration, match.snapshot().remainingMillis().orElseThrow());
+        clock.advance(Duration.ofMillis(duration - 1));
+        assertEquals(1, match.snapshot().remainingMillis().orElseThrow());
+        clock.advance(Duration.ofMillis(2));
+        assertEquals(0, match.snapshot().remainingMillis().orElseThrow());
+        match.tick();
+        assertTrue(match.snapshot().remainingMillis().isEmpty());
+        assertEquals(MatchOutcome.LOST, match.result().orElseThrow().outcome());
+    }
     private final Fixtures.MutableClock clock = new Fixtures.MutableClock();
     private final Match match = Fixtures.match(clock);
     private final UUID player = UUID.randomUUID();
