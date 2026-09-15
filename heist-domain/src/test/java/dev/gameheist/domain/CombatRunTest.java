@@ -8,6 +8,24 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CombatRunTest {
+    @Test void waveCountdownUsesSpawnDeadlineAndDisappearsAfterClaim() {
+        var combat = combat();
+        assertTrue(combat.snapshot().waveRemainingMillis().isEmpty());
+        assertFalse(combat.claimWave(false));
+        assertTrue(combat.snapshot().waveRemainingMillis().isEmpty());
+        assertFalse(combat.claimWave(true));
+        assertEquals(15000, combat.snapshot().waveRemainingMillis().orElseThrow());
+        advance(14999);
+        assertEquals(1, combat.snapshot().waveRemainingMillis().orElseThrow());
+        assertFalse(combat.claimWave(true));
+        advance(1001);
+        assertEquals(0, combat.snapshot().waveRemainingMillis().orElseThrow());
+        assertTrue(combat.claimWave(true));
+        assertTrue(combat.snapshot().waveRemainingMillis().isEmpty());
+        advance(60000);
+        assertFalse(combat.claimWave(true));
+        assertTrue(combat.snapshot().waveRemainingMillis().isEmpty());
+    }
     @Test void emptyTriggerReloadsOnceWithoutFiringOrExtendingTheTimer() {
         var combat = combat();
         assertFalse(combat.reloadEmpty(first));

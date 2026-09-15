@@ -156,7 +156,8 @@ public final class CombatRun {
         });
         Map<String, Integer> enemies = new LinkedHashMap<>();
         guards.forEach((id, g) -> enemies.put(id, g.health));
-        return new CombatSnapshot(crew, enemies, waveSpawned);
+        return new CombatSnapshot(crew, enemies, waveSpawned,
+                waveAt == null || waveSpawned ? OptionalLong.empty() : OptionalLong.of(remaining(waveAt)));
     }
     public Map<UUID, CombatStats> contributions() {
         Map<UUID, CombatStats> stats = new HashMap<>();

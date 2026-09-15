@@ -92,6 +92,19 @@ public final class HeistGameplay {
             instances.updateHeist(instance.match().id(), present);
             var current = instances.snapshot(instance.match().id());
             var heist = instances.heistSnapshot(instance.match().id()).orElseThrow();
+            var combatState = instances.combatSnapshot(current.match().id());
+            var warning = view.waveWarning.poll(current.match().phase().gameplay() && current.match().result().isEmpty(),
+                    combatState.isPresent() ? combatState.orElseThrow().waveRemainingMillis() : OptionalLong.empty());
+            if (warning.isPresent()) {
+                for (UUID playerId : present.keySet()) {
+                    Player player = Bukkit.getPlayer(playerId);
+                    if (player == null) continue;
+                    player.showTitle(Title.title(Component.text("RESPONDERS IN " + warning.getAsLong() + "s", NamedTextColor.GOLD),
+                            Component.text("Find cover and prepare your crew"),
+                            Title.Times.times(Duration.ofMillis(100), Duration.ofMillis(1200), Duration.ofMillis(200))));
+                    player.sendMessage(Component.text("Responders approaching — find cover!", NamedTextColor.GOLD));
+                }
+            }
             var drill = definition.orElseThrow().drill();
             World soundWorld = Bukkit.getWorld(current.worldName());
             for (var cue : view.audio.update(ticks, current.match().phase().gameplay() && current.match().result().isEmpty(),
@@ -185,10 +198,12 @@ public final class HeistGameplay {
         else if (state.extracting()) instruction = "EXTRACT IN " + seconds(state.extractionRemainingMillis()) + "s — gather at green";
         else if (state.securedBags() < state.requiredBags()) instruction = "Carry gold bags to green: " + state.securedBags() + "/" + state.requiredBags();
         else instruction = "Minimum loot secured — bring more or vote at green (" + state.extractionVotes() + " votes)";
-        view.bar.name(Component.text(instance.match().alarm() + " · " + instruction));
+        var combat = instances.combatSnapshot(instance.match().id());
+        String responders = combat.filter(snapshot -> snapshot.waveRemainingMillis().isPresent())
+                .map(snapshot -> " · Responders in " + seconds(snapshot.waveRemainingMillis().orElseThrow()) + "s").orElse("");
+        view.bar.name(Component.text(instance.match().alarm() + " · " + instruction + responders));
         view.bar.color(state.jammed() ? BossBar.Color.RED : state.extracting() ? BossBar.Color.GREEN : BossBar.Color.BLUE);
         view.bar.progress(Math.min(1f, state.securedBags() / (float) state.requiredBags()));
-        var combat = instances.combatSnapshot(instance.match().id());
         List<CrewStatus.Member> crew = new ArrayList<>();
         if (combat.isPresent()) {
             combat.orElseThrow().players().forEach((id, fighter) -> {
@@ -270,6 +285,7 @@ public final class HeistGameplay {
     private static long seconds(long millis) { return (millis + 999) / 1000; }
     private static final class Presentation {
         private final AudioTimeline audio = new AudioTimeline();
+        private final WaveWarning waveWarning = new WaveWarning();
         private final Map<UUID, String> crewNames = new HashMap<>();
         private final Map<UUID, BossBar> crewBars = new HashMap<>();
         private final Map<UUID, HitFeedback> hits = new HashMap<>();
