@@ -64,7 +64,7 @@ public final class Match {
         if (participants.isEmpty()) throw new IllegalStateException("Cannot start an empty crew");
         deadline = clock.instant().plus(arena.timeLimit());
         phase = MatchPhase.INFILTRATION;
-        if (arena.combat()) combat = new CombatRun(participants, clock);
+        if (arena.combat()) combat = new CombatRun(participants, clock, difficulty);
     }
 
     public void raiseAlarm() {
@@ -116,6 +116,7 @@ public final class Match {
 
     public MatchPhase phase() { return phase; }
     public Difficulty difficulty() { return difficulty; }
+    public boolean combatEnabled() { return arena.combat(); }
     public Optional<MatchResult> result() { return Optional.ofNullable(result); }
     public boolean hasParticipant(UUID playerId) { return participants.containsKey(playerId); }
     public int participantCount() { return participants.size(); }
@@ -158,7 +159,9 @@ public final class Match {
     public CombatRun.ReviveUpdate updateReviveDetailed(UUID helper, double distance, boolean clear, boolean holding) {
         return requireCombat().updateReviveDetailed(helper, distance, clear, holding);
     }
-    public boolean claimWave() { return requireCombat().claimWave(alarm == AlarmState.LOUD); }
+    public boolean claimWave() { return claimReinforcements() > 0; }
+    public int claimReinforcements() { return requireCombat().claimReinforcements(alarm == AlarmState.LOUD, phase); }
+    public void retireGuard(String id) { requireCombat().retireGuard(id); }
     private CombatRun requireCombat() {
         requireGameplay();
         if (combat == null) throw new IllegalStateException("Combat is not enabled in this arena");

@@ -95,7 +95,7 @@ public final class HeistGameplay {
             var current = instances.snapshot(instance.match().id());
             var heist = instances.heistSnapshot(instance.match().id()).orElseThrow();
             var combatState = instances.combatSnapshot(current.match().id());
-            var warning = view.waveWarning.poll(current.match().phase().gameplay() && current.match().result().isEmpty(),
+            var warning = view.waveWarning.poll(combatState.map(s -> s.wavesSpawned()).orElse(0), current.match().phase().gameplay() && current.match().result().isEmpty(),
                     combatState.isPresent() ? combatState.orElseThrow().waveRemainingMillis() : OptionalLong.empty());
             if (warning.isPresent()) {
                 for (UUID playerId : present.keySet()) {

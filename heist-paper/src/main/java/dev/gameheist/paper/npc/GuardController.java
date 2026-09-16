@@ -48,7 +48,7 @@ public final class GuardController implements Listener {
             try {
                 GuardSquad squad = squads.get(id);
                 if (squad == null) {
-                    squad = new GuardSquad(arena.guards(), instance.match().participants().keySet(),
+                    squad = new GuardSquad(arena.guards().stream().map(g -> dev.gameheist.domain.combat.BalanceRules.guard(g, instances.difficulty(id))).toList(), instance.match().participants().keySet(),
                             definition -> {
                                 var actor = new PaperGuardActor(world, definition, ownedEntities, arena.combat());
                                 actors.computeIfAbsent(id, ignored -> new LinkedHashMap<>()).put(definition.id(), actor);
@@ -92,11 +92,17 @@ public final class GuardController implements Listener {
         instances.snapshot(id);
         GuardSquad squad = squads.get(id);
         if (squad == null) return List.of("No active guard squad (guards spawn when a guarded arena starts).");
-        return squad.snapshots().stream().map(state -> state.id() + " " + state.decision().state()
+        var lines = new ArrayList<String>();
+        instances.combatSnapshot(id).ifPresent(combat -> lines.add("Director: " + instances.difficulty(id)
+                + " waves=" + combat.wavesSpawned() + "/4 alive=" + combat.guards().values().stream().filter(hp -> hp > 0).count()
+                + " registered=" + combat.guards().size() + "/24 nextMs="
+                + (combat.waveRemainingMillis().isPresent() ? combat.waveRemainingMillis().getAsLong() : "none")));
+        lines.addAll(squad.snapshots().stream().map(state -> state.id() + " " + state.decision().state()
                 + " suspicion=" + Math.round(state.decision().suspicion() * 100) + "%"
                 + " target=" + state.decision().targetId().map(UUID::toString).orElse("none")
                 + " updates=" + state.updates() + " pathFailures=" + state.pathFailures()
-                + " lastUpdateMicros=" + state.updateMicros()).toList();
+                + " lastUpdateMicros=" + state.updateMicros()).toList());
+        return List.copyOf(lines);
     }
 
     Map<String, PaperGuardActor> actors(UUID id) { return actors.getOrDefault(id, Map.of()); }
@@ -104,14 +110,14 @@ public final class GuardController implements Listener {
         var squad = squads.get(id);
         return squad == null ? List.of() : squad.snapshots();
     }
-    void reinforce(UUID id) throws java.io.IOException {
+    void reinforce(UUID id, int count) throws java.io.IOException {
         var arena = arenas.require(instances.snapshot(id).match().arena());
         var squad = squads.get(id);
         if (squad == null) throw new IllegalStateException("Missing combat squad");
         List<dev.gameheist.domain.npc.GuardDefinition> wave = new ArrayList<>();
-        int count = Math.min(2, instances.snapshot(id).match().participants().size());
+        if (count < 1 || count > 4) throw new IllegalArgumentException("Wave size must be 1–4");
         for (int i = 0; i < count; i++) {
-            var base = arena.guards().get(i % arena.guards().size());
+            var base = dev.gameheist.domain.combat.BalanceRules.guard(arena.guards().get(i % arena.guards().size()), instances.difficulty(id));
             String name = "responder_" + i;
             // Select a fresh ID even for user-authored guard names.
             while (actors(id).containsKey(name)) name += "_r";

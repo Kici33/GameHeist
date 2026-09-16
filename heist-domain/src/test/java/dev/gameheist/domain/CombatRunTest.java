@@ -8,7 +8,21 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CombatRunTest {
-    @Test void waveCountdownUsesSpawnDeadlineAndDisappearsAfterClaim() {
+    @Test void hardAttacksStillRequireVisibleTargetAndFullAimAndRetirementGrantsNoDamageCredit() {
+        var combat = new CombatRun(Map.of(first, Loadout.starter(Role.SCOUT)), clock, dev.gameheist.domain.match.Difficulty.HARD);
+        combat.registerGuard("guard");
+        assertEquals(CombatRun.Attack.NONE, combat.attack("guard", Optional.of(first), 5, false, true));
+        assertEquals(CombatRun.Attack.AIMING, combat.attack("guard", Optional.of(first), 5, true, true));
+        advance(999);
+        assertEquals(CombatRun.Attack.NONE, combat.attack("guard", Optional.of(first), 5, true, true));
+        advance(1);
+        assertEquals(CombatRun.Attack.HIT, combat.attack("guard", Optional.of(first), 5, true, true));
+        assertEquals(92, player(combat, first).health());
+        combat.retireGuard("guard");
+        assertEquals(0, combat.snapshot().guards().get("guard"));
+        assertEquals(0, player(combat, first).stats().damageDealt());
+    }
+    @Test void waveCountdownSchedulesNextWaveAfterClaim() {
         var combat = combat();
         assertTrue(combat.snapshot().waveRemainingMillis().isEmpty());
         assertFalse(combat.claimWave(false));
@@ -21,10 +35,12 @@ class CombatRunTest {
         advance(1001);
         assertEquals(0, combat.snapshot().waveRemainingMillis().orElseThrow());
         assertTrue(combat.claimWave(true));
-        assertTrue(combat.snapshot().waveRemainingMillis().isEmpty());
+        assertEquals(40000, combat.snapshot().waveRemainingMillis().orElseThrow());
+        assertEquals(1, combat.snapshot().wavesSpawned());
         advance(60000);
+        assertTrue(combat.claimWave(true));
+        assertEquals(2, combat.snapshot().wavesSpawned());
         assertFalse(combat.claimWave(true));
-        assertTrue(combat.snapshot().waveRemainingMillis().isEmpty());
     }
     @Test void emptyTriggerReloadsOnceWithoutFiringOrExtendingTheTimer() {
         var combat = combat();
@@ -288,7 +304,7 @@ class CombatRunTest {
         assertTrue(combat.reload(second));
         assertTrue(player(combat, second).reviving().isEmpty());
     }
-    @Test void reinforcementWaveIsDelayedAndClaimedOnlyOnceAndGuardCapIsHard() {
+    @Test void reinforcementWaveIsDelayedAndGuardCapIsHard() {
         var combat = combat();
         assertFalse(combat.claimWave(false));
         advance(60_000);
@@ -298,7 +314,7 @@ class CombatRunTest {
         advance(1);
         assertTrue(combat.claimWave(true));
         advance(60_000);
-        assertFalse(combat.claimWave(true));
+        assertTrue(combat.claimWave(true));
         for (int i = 1; i < 24; i++) combat.registerGuard("guard_" + i);
         assertThrows(IllegalStateException.class, () -> combat.registerGuard("overflow"));
         assertThrows(IllegalStateException.class, () -> combat.registerGuard("guard"));

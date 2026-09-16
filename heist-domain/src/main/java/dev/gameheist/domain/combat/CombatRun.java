@@ -13,10 +13,15 @@ public final class CombatRun {
     private final Clock clock;
     private final Map<UUID, Fighter> players = new LinkedHashMap<>();
     private final Map<String, Guard> guards = new LinkedHashMap<>();
-    private Instant waveAt;
-    private boolean waveSpawned;
+    private final ReinforcementDirector director;
+    private final dev.gameheist.domain.match.Difficulty difficulty;
 
     public CombatRun(Map<UUID, Loadout> crew, Clock clock) {
+        this(crew, clock, dev.gameheist.domain.match.Difficulty.NORMAL);
+    }
+    public CombatRun(Map<UUID, Loadout> crew, Clock clock, dev.gameheist.domain.match.Difficulty difficulty) {
+        this.difficulty = Objects.requireNonNull(difficulty);
+        this.director = new ReinforcementDirector(clock, difficulty);
         this.clock = Objects.requireNonNull(clock);
         if (crew.isEmpty() || crew.size() > 4) throw new IllegalArgumentException("Combat needs 1-4 players");
         crew.forEach((id, loadout) -> players.put(id, new Fighter(loadout.role())));
@@ -96,9 +101,9 @@ public final class CombatRun {
         }
         if (now.isBefore(guard.aimAt)) return Attack.NONE;
         guard.target = null;
-        guard.nextAttack = now.plusMillis(2500);
+        guard.nextAttack = now.plusMillis(difficulty == dev.gameheist.domain.match.Difficulty.HARD ? 2200 : 2500);
         Fighter victim = require(target);
-        int damage = Math.min(players.size() == 1 ? 6 : 10, victim.health);
+        int damage = Math.min(BalanceRules.guardDamage(difficulty, players.size()), victim.health);
         victim.health -= damage;
         victim.taken += damage;
         cancelRevive(victim);
@@ -139,13 +144,14 @@ public final class CombatRun {
         cancelRevive(helper);
         return ReviveUpdate.REVIVED;
     }
-    /** One wave per match, fifteen seconds after the first loud frame. */
-    public boolean claimWave(boolean loud) {
-        if (!loud || waveSpawned) return false;
-        if (waveAt == null) waveAt = clock.instant().plusSeconds(15);
-        if (clock.instant().isBefore(waveAt)) return false;
-        waveSpawned = true;
-        return true;
+    public boolean claimWave(boolean loud) { return claimReinforcements(loud, dev.gameheist.domain.match.MatchPhase.INFILTRATION) > 0; }
+    public int claimReinforcements(boolean loud, dev.gameheist.domain.match.MatchPhase phase) {
+        return director.claim(loud, phase, (int) players.values().stream().filter(p -> p.health > 0).count(),
+                (int) guards.values().stream().filter(g -> g.health > 0).count(), guards.size());
+    }
+    public void retireGuard(String id) {
+        var guard = guards.get(id);
+        if (guard != null) { guard.health = 0; guard.target = null; }
     }
     public CombatSnapshot snapshot() {
         Map<UUID, CombatSnapshot.Player> crew = new LinkedHashMap<>();
@@ -156,8 +162,7 @@ public final class CombatRun {
         });
         Map<String, Integer> enemies = new LinkedHashMap<>();
         guards.forEach((id, g) -> enemies.put(id, g.health));
-        return new CombatSnapshot(crew, enemies, waveSpawned,
-                waveAt == null || waveSpawned ? OptionalLong.empty() : OptionalLong.of(remaining(waveAt)));
+        return new CombatSnapshot(crew, enemies, director.waves() > 0, director.remaining(), director.waves());
     }
     public Map<UUID, CombatStats> contributions() {
         Map<UUID, CombatStats> stats = new HashMap<>();

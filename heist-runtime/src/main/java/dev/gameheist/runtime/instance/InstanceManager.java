@@ -168,6 +168,9 @@ public final class InstanceManager {
         checkThread(); return playerMatch(helper).updateReviveDetailed(helper, distance, clear, holding);
     }
     public boolean claimWave(UUID id) { checkThread(); return require(id).match.claimWave(); }
+    public int claimReinforcements(UUID id) { checkThread(); return require(id).match.claimReinforcements(); }
+    public dev.gameheist.domain.match.Difficulty difficulty(UUID id) { checkThread(); return require(id).match.difficulty(); }
+    public void retireGuard(UUID id, String guard) { checkThread(); require(id).match.retireGuard(guard); }
     private Match playerMatch(UUID player) {
         UUID id = playerInstances.get(player);
         if (id == null) throw new IllegalStateException("Player is not in an instance");

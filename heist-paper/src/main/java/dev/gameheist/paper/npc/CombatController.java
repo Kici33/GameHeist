@@ -36,20 +36,22 @@ public final class CombatController implements Listener {
     public void tick() {
         for (var instance : instances.all()) {
             UUID id = instance.match().id();
-            if (instance.state() != InstanceState.RUNNING || instances.combatSnapshot(id).isEmpty()) continue;
+            if (instance.state() != InstanceState.RUNNING || !instance.match().phase().gameplay() || instances.combatSnapshot(id).isEmpty()) continue;
             try {
                 for (UUID playerId : instance.match().participants().keySet()) {
                     Player player = present(playerId, instance);
                     if (player != null) players.equipCombat(player);
                 }
-                if (instances.claimWave(id)) {
-                    guards.reinforce(id);
+                int reinforcementCount = instances.claimReinforcements(id);
+                if (reinforcementCount > 0) {
+                    guards.reinforce(id, reinforcementCount);
                     broadcast(instance, "Responders have arrived at the guard patrol entrances!");
                 }
                 for (var diagnostic : guards.decisions(id)) {
                     if (!instances.snapshot(id).match().phase().gameplay()) break;
                     var actor = guards.actors(id).get(diagnostic.id());
                     if (actor == null) continue;
+                    if (!actor.alive()) { instances.retireGuard(id, diagnostic.id()); continue; }
                     var state = instances.combatSnapshot(id).orElseThrow();
                     if (state.guards().getOrDefault(diagnostic.id(), 0) == 0) { actor.release(); continue; }
                     Player target = diagnostic.decision().targetId().map(playerId -> present(playerId, instance)).orElse(null);

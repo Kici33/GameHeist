@@ -6,6 +6,15 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class WaveWarningTest {
+    @Test void eachNewWaveAndRescheduledWaveCanWarnAgain() {
+        var warning = new WaveWarning();
+        assertEquals(5, warning.poll(0, true, OptionalLong.of(5000)).orElseThrow());
+        assertTrue(warning.poll(0, true, OptionalLong.of(4000)).isEmpty());
+        assertEquals(5, warning.poll(1, true, OptionalLong.of(5000)).orElseThrow());
+        assertTrue(warning.poll(1, true, OptionalLong.empty()).isEmpty());
+        assertEquals(5, warning.poll(1, true, OptionalLong.of(5000)).orElseThrow());
+        assertTrue(warning.poll(2, false, OptionalLong.of(5000)).isEmpty());
+    }
     @Test void warnsOnceAtThresholdWithoutRepeatingAcrossHudTicks() {
         var warning = new WaveWarning();
         assertTrue(warning.poll(true, OptionalLong.empty()).isEmpty());

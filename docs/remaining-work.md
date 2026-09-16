@@ -19,7 +19,7 @@ The practice prototype is implemented but not accepted through real-client testi
 - Resolve and implement intended bleedout/spectator/limited-rescue rules; current revive durations differ from GDD hypotheses. Do not silently assume the GDD's provisional numbers were accepted through playtesting.
 - Additional weapon behaviors and gadgets, threat marking, full role benefits/tradeoffs, camera disruption and detection modifiers.
 - Normal/Hard gameplay differences and solo-to-four-player scaling beyond current initial rules. Tune match duration, damage, detection, repairs and loot through playtests.
-- Sustained bounded reinforcement director and advanced navigation/cover/stuck recovery/debug overlays beyond current guard implementation; profile before increasing pressure.
+- Four-wave phase/crew-aware reinforcement director, Normal/Hard tuning and solo/crew loot pressure are implemented. Run the eight real-client balance scenarios and profile navigation/cover before further changes; see [rules and acceptance](reinforcement-balance.md).
 
 ## Player progression and persistence
 

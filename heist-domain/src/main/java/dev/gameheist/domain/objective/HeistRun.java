@@ -74,11 +74,11 @@ public final class HeistRun {
             if (carried.remove(player) != null) {
                 secured++;
                 contribute(player, true);
-                if (secured == definition.requiredBags()) match.completeObjective(definition.lootObjective());
-                return "Bag secured (" + secured + "/" + definition.requiredBags()
+                if (secured == requiredBags()) match.completeObjective(definition.lootObjective());
+                return "Bag secured (" + secured + "/" + requiredBags()
                         + "). Click again to vote for extraction once enough bags are secured.";
             }
-            if (secured < definition.requiredBags()) throw new IllegalStateException("Secure more bags before extracting");
+            if (secured < requiredBags()) throw new IllegalStateException("Secure more bags before extracting");
             if (extractionDeadline != null) return "Extraction is counting down. Stay near the green marker.";
             votes.add(player);
             if (votes.size() > match.activeParticipantCount() / 2) {
@@ -143,6 +143,10 @@ public final class HeistRun {
         if (player.equals(repairingPlayer)) { repairingPlayer = null; repairDeadline = null; }
     }
 
+    private int requiredBags() {
+        return match.combatEnabled() && match.participantCount() > 0 ? dev.gameheist.domain.combat.BalanceRules.requiredBags(
+                match.difficulty(), match.participantCount(), definition.requiredBags(), definition.bags().size()) : definition.requiredBags();
+    }
     private void contribute(UUID player, boolean bag) {
         contributions.merge(player, new dev.gameheist.domain.player.ObjectiveStats(1, bag ? 1 : 0),
                 dev.gameheist.domain.player.ObjectiveStats::add);
@@ -153,7 +157,7 @@ public final class HeistRun {
         return new HeistSnapshot(securityDisabled, started, complete, jammed, jamsTriggered,
                 Math.max(0, definition.drillDuration().toMillis() - drillWorkMillis),
                 Optional.ofNullable(repairingPlayer), remaining(repairDeadline), carried, unavailable, secured,
-                definition.requiredBags(), votes.size(), extractionDeadline != null, remaining(extractionDeadline));
+                requiredBags(), votes.size(), extractionDeadline != null, remaining(extractionDeadline));
     }
     private long remaining(Instant deadline) {
         return deadline == null ? 0 : Math.max(0, Duration.between(clock.instant(), deadline).toMillis());

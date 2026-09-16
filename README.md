@@ -33,7 +33,7 @@ Review and accept Minecraft's EULA yourself when setting up the server. No serve
 - Labeled placeholder props, crew HUD, carrying slowdown, and result summaries with secured bag counts.
 - Configured guard patrols, field-of-view/line-of-sight detection, noise investigation, interrupted alarm attempts, pursuit, and last-seen search in `graybox:3`.
 - Staggered guard updates, bounded path requests, stuck retirement, scoped NPC cleanup, and operator diagnostics.
-- Opt-in `graybox:4` combat: carbine, telegraphed guard attacks, one reinforcement wave, incapacitation, revives, crew defeat, and saved combat contributions.
+- Opt-in `graybox:4` combat: carbine, telegraphed guard attacks, bounded recurring reinforcements, incapacitation, revives, crew defeat, and saved combat contributions.
 - Admission gated on successful pack application when the development bypass is off.
 - Read-only heartbeat/capacity endpoints: `http://127.0.0.1:8081/live` and `/ready`.
 - Lobby profile loading, three editable preset slots, saved settings, and revision-checked MongoDB profiles/results (opt-in).
@@ -73,7 +73,7 @@ Create with `/heist create graybox 4`, join, then start using the same commands 
 - Left click with the carbine to fire. Each magazine has 12 rounds, shots are at least 300 milliseconds apart, range is 24 blocks, and three hits defeat a full-health guard. Walls and players block the shot; friendly fire is disabled. Any accepted shot raises the alarm, including a miss.
 - Press the swap-hands key (default **F**) to reload for two seconds. This practice slice has unlimited reserve ammunition. Right click still operates objective markers.
 - Loud guards aim for one second before dealing 10 damage (6 for solo crews), then wait 2.5 seconds before starting another aim. Breaking line of sight or moving beyond 16 blocks interrupts aim. The player receives a text warning before each attack.
-- One responder wave arrives 15 seconds after the alarm: one responder for a solo crew, two for larger crews, spawning at existing patrol starts. There are no recurring waves. All actors share the squad's 24-guard hard cap and cleanup scope.
+- A bounded director schedules up to four responder waves after the alarm, with phase/crew-dependent pressure and a lifetime cap of 24 guard registrations. `/heist create graybox 4 HARD` enables stronger detection, shorter cooldowns and greater loot pressure; Normal remains the default. See [tuning rules and playtest checklist](docs/reinforcement-balance.md).
 - At zero combat HP, players are downed and cannot move, fire, repair, collect loot, vote, or satisfy extraction presence. A carried bag returns exactly once to its original gold marker. Downing everyone produces a LOST result with reason `crew_incapacitated`.
 - Sneak and right click a downed teammate, then keep sneaking within three blocks with clear sight. Reviving takes four seconds, or three for Support, and restores 50 HP. Damage, movement out of range, loss of sight, releasing sneak, firing, or starting a reload cancels the revive. There is no bleed-out timer in this slice.
 
@@ -99,7 +99,7 @@ See [architecture and extension points](docs/architecture.md), [manual verificat
 
 ## Current operational limits
 
-Redis, BungeeCord/lobby routing, Agones allocation, additional weapons/gadgets, sustained reinforcement pressure, finished arenas, custom NPC models, and ambient audio are future work. Guards use native-mob placeholders with vanilla goals removed and vanilla damage disabled; version 4 applies custom combat rules. Do not expose this practice adapter as a production network.
+Redis, BungeeCord/lobby routing, Agones allocation, additional weapons/gadgets, reinforcement playtest acceptance, finished arenas, custom NPC models, and ambient audio are future work. Guards use native-mob placeholders with vanilla goals removed and vanilla damage disabled; version 4 applies custom combat rules. Do not expose this practice adapter as a production network.
 
 With `storage.mode: mongodb`, acknowledged profiles/results persist in MongoDB. The operator history shows only the last 100 acknowledged results from this server run. Memory mode loses all data at restart. Practice results grant no rewards. A separate [transactional production reward API and recovery ledger](docs/rewards.md) requires a MongoDB replica set; `/heist progression` reads its saved/pending state. Production match transport wiring remains unfinished. Health endpoints provide process/admission information, not historical metrics. The health listener defaults to loopback; binding it to a pod interface must be accompanied by network restrictions.
 

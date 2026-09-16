@@ -74,7 +74,7 @@ public final class HeistCommand implements TabExecutor {
                         /heist presetname <1-3> <name>
                         /heist settings <sound|particles|motion|notifications> <on|off>
                         /heist settings language <en|pl>
-                        /heist create <arena-id> <version>
+                        /heist create <arena-id> <version> [NORMAL|HARD]
                         /heist join <instance-uuid> [TECHNICIAN|SCOUT|ENFORCER|SUPPORT]
                         /heist start <instance-uuid>
                         /heist complete <instance-uuid> <objective-id>
@@ -126,7 +126,7 @@ public final class HeistCommand implements TabExecutor {
                 case "create" -> {
                     requireArgs(args, 3);
                     UUID id = instances.createPractice(new ArenaKey(args[1], Integer.parseInt(args[2])),
-                            Difficulty.NORMAL, new Random().nextLong());
+                            args.length > 3 ? Difficulty.valueOf(args[3].toUpperCase(Locale.ROOT)) : Difficulty.NORMAL, new Random().nextLong());
                     say(sender, "Created practice instance " + id + ". Join it before starting.");
                     logger.info("Admin " + sender.getName() + " created practice instance " + id);
                 }
@@ -224,6 +224,7 @@ public final class HeistCommand implements TabExecutor {
         if (args.length == 2 && args[0].equalsIgnoreCase("settings")) choices = List.of("language", "sound", "particles", "motion", "notifications");
         if (args.length == 3 && args[0].equalsIgnoreCase("settings")) choices = args[1].equalsIgnoreCase("language") ? List.of("en", "pl") : List.of("on", "off");
         if (args.length == 4 && Set.of("stats", "leaderboard").contains(args[0].toLowerCase(Locale.ROOT))) choices = List.of("1", "2", "3", "4");
+        if (args.length == 4 && args[0].equalsIgnoreCase("create")) choices = List.of("NORMAL", "HARD");
         if (args.length == 5 && Set.of("stats", "leaderboard").contains(args[0].toLowerCase(Locale.ROOT))) choices = List.of("NORMAL", "HARD");
         if (args.length == 6 && args[0].equalsIgnoreCase("stats")) choices = List.of("practice", "production");
         String prefix = args[args.length - 1].toLowerCase(Locale.ROOT);
