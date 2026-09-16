@@ -22,6 +22,7 @@ public final class MongoStore implements ProfileRepository, ResultRepository, St
     private final MongoReservations reservations;
     private final MongoRewards rewards;
     private final MongoLeaderboards leaderboards;
+    private final MongoNetwork network;
     private boolean statisticsIndexReady;
     private final int practiceRetentionDays;
     private final ThreadPoolExecutor workers = new ThreadPoolExecutor(2, 2, 0, TimeUnit.SECONDS,
@@ -47,6 +48,7 @@ public final class MongoStore implements ProfileRepository, ResultRepository, St
         profiles = client.getDatabase(database).getCollection("profiles");
         results = client.getDatabase(database).getCollection("match_results");
         reservations = new MongoReservations(client.getDatabase(database).getCollection("reservations"), this);
+        network = new MongoNetwork(this, client, client.getDatabase(database), reservations);
         leaderboards = new MongoLeaderboards(this, client.getDatabase(database));
         rewards = new MongoRewards(this, client, client.getDatabase(database));
     }
@@ -68,7 +70,7 @@ public final class MongoStore implements ProfileRepository, ResultRepository, St
         return submit(() -> {
             var document = MongoDocuments.profile(replacement);
             var outcome = profiles.replaceOne(and(eq("_id", replacement.playerId().toString()),
-                    eq("schemaVersion", 1), eq("revision", expectedRevision)), document);
+                    eq("schemaVersion", 1), eq("revision", expectedRevision), exists("networkOwner", false)), document);
             // An identical retry after an ambiguous acknowledgement is safe; never overwrite a newer revision.
             if (outcome.getMatchedCount() == 0 && !document.equals(profiles.find(eq("_id", replacement.playerId().toString())).first())) {
                 throw new IllegalStateException("Stale profile revision; reload before editing");
@@ -161,6 +163,41 @@ public final class MongoStore implements ProfileRepository, ResultRepository, St
     public ReservationRepository reservations() { return reservations; }
     public MongoRewards rewards() { return rewards; }
     public MongoLeaderboards leaderboards() { return leaderboards; }
+    public MongoNetwork network() { return network; }
+    /** Use only after this connection has passed authoritative network admission checks. */
+    public ProfileRepository sessionProfiles() {
+        var tokens = new java.util.concurrent.ConcurrentHashMap<UUID, UUID>();
+        return new ProfileRepository() {
+            @Override public CompletionStage<PlayerProfile> loadOrCreate(UUID player) {
+                UUID token = tokens.computeIfAbsent(player, ignored -> UUID.randomUUID());
+                return submit(() -> {
+                    if (!token.equals(tokens.get(player))) throw new IllegalStateException("Connection closed before profile claim");
+                    var starter = MongoDocuments.profile(PlayerProfile.starter(player));
+                    try { profiles.insertOne(starter); }
+                    catch (MongoWriteException failure) { if (!duplicate(failure)) throw failure; }
+                    var row = profiles.findOneAndUpdate(and(eq("_id", player.toString()), eq("schemaVersion", 1)),
+                            com.mongodb.client.model.Updates.set("networkOwner", token.toString()),
+                            new com.mongodb.client.model.FindOneAndUpdateOptions().returnDocument(com.mongodb.client.model.ReturnDocument.AFTER));
+                    if (!token.equals(tokens.get(player))) throw new IllegalStateException("Connection closed during profile claim");
+                    return MongoDocuments.profile(row);
+                });
+            }
+            @Override public CompletionStage<Void> save(PlayerProfile replacement, long expected) {
+                UUID token = tokens.get(replacement.playerId());
+                if (token == null || expected < 0 || expected == Long.MAX_VALUE || replacement.revision() != expected + 1)
+                    return CompletableFuture.failedFuture(new IllegalStateException("Invalid profile session/revision"));
+                return submit(() -> {
+                    var document = MongoDocuments.profile(replacement).append("networkOwner", token.toString());
+                    var changed = profiles.replaceOne(and(eq("_id", replacement.playerId().toString()), eq("schemaVersion", 1),
+                            eq("revision", expected), eq("networkOwner", token.toString())), document);
+                    if (changed.getMatchedCount() == 0 && !document.equals(profiles.find(eq("_id", replacement.playerId().toString())).first()))
+                        throw new IllegalStateException("Stale network profile session or revision");
+                    return null;
+                });
+            }
+            @Override public void closed(UUID player) { tokens.remove(player); }
+        };
+    }
     <T> CompletableFuture<T> submit(Supplier<T> operation) {
         try { return CompletableFuture.supplyAsync(operation, workers); }
         catch (RejectedExecutionException failure) { return CompletableFuture.failedFuture(failure); }

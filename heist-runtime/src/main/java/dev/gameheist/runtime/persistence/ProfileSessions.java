@@ -36,7 +36,9 @@ public final class ProfileSessions {
         catch (RuntimeException failure) { entry.failed = true; }
     }
 
-    public void close(UUID player) { checkThread(); sessions.remove(player); }
+    public void close(UUID player) { checkThread(); sessions.remove(player); repository.closed(player); }
+    public void freeze(UUID player) { require(player); sessions.get(player).frozen = true; }
+    public void unfreeze(UUID player) { checkThread(); var entry = sessions.get(player); if (entry != null) entry.frozen = false; }
 
     public void tick() {
         checkThread();
@@ -101,6 +103,7 @@ public final class ProfileSessions {
         if (draining) throw new IllegalStateException("Server is draining; profile reload is closed");
         var entry = sessions.get(player);
         if (entry != null && entry.pending != null) throw new IllegalStateException("Profile operation pending");
+        if (entry != null && entry.frozen) throw new IllegalStateException("Profile locked by queued crew");
         close(player);
         open(player);
     }
@@ -109,6 +112,7 @@ public final class ProfileSessions {
         checkThread();
         if (draining) throw new IllegalStateException("Server is draining; profile edits are closed");
         var current = require(player);
+        if (sessions.get(player).frozen) throw new IllegalStateException("Profile locked by queued crew");
         var replacement = Objects.requireNonNull(update.apply(current));
         if (!replacement.playerId().equals(player) || current.revision() == Long.MAX_VALUE
                 || replacement.revision() != current.revision() + 1) {
@@ -143,5 +147,6 @@ public final class ProfileSessions {
         private PlayerProfile profile;
         private CompletableFuture<PlayerProfile> pending;
         private boolean failed;
+        private boolean frozen;
     }
 }

@@ -24,13 +24,13 @@ The practice prototype is implemented but not accepted through real-client testi
 ## Player progression and persistence
 
 - Transactional reward acceptance, receipts, durable recovery and XP/cosmetic unlock references now exist, with six replica-set integration tests including 100 replays and rollback. Finish production transport/profile-lease integration, equippable cosmetic UI and real-client saved/pending acceptance. Practice rewards remain disabled. See [reward implementation and verification](rewards.md).
-- Network-wide profile leases/session ownership, stale generation rejection across coordinator/result writes, reconciliation and documented crash-loss handling.
+- Network practice now has backend leases, profile ownership tokens, exact-generation admission and durable queue recovery. Complete real-proxy failure acceptance and production result ownership integration; see [network implementation and acceptance](network-lobby.md).
 - Validate the implemented crew/practice-session/loadout/settings/personal-results menus on a real client. Named presets, default cosmetic references, PL/EN menu labels and sound/particle/motion/notification preferences are implemented; full gameplay localization, progression-driven cosmetic choices and network matchmaking remain. See [menu behavior and acceptance checklist](player-menus.md).
 - Objective contributions, aggregate recorded playtime, authoritative production leaderboards, cache reconciliation/invalidation and configurable practice/log retention are implemented. Validate command readability and large-history latency in staging; production matches still depend on issue #10. See [statistics semantics and verification](statistics.md).
 
 ## Network and deployment
 
-- End-to-end lobby/crew queue/coordinator workflow connected to reservation repositories; backend registration, exact-server routing, BungeeCord transport, failed-transfer compensation and healthy-lobby return.
+- Optional lobby/crew queues, transactional allocation, backend registration, exact-server BungeeCord requests, incomplete-crew timeout, dead-backend recovery and healthy-lobby return are implemented for practice. Six native replica-set integration tests passed; real BungeeCord/client transfer, outage and deployment acceptance remain open in issue #10. See [setup and checklist](network-lobby.md).
 - Redis invalidation/session/cache integration with reconciliation where required; reward correctness must remain independent of disposable messages.
 - Agones allocation and fleet lifecycle, immutable world templates and asynchronous preparation, exact version/pack binding, two independent match pods.
 - Validate Kubernetes manifests in a real cluster: forwarding and network isolation, restricted credentials/RBAC/secrets, startup/readiness/liveness, draining/termination, proxy/backend/pod failures and visible lobby recovery.

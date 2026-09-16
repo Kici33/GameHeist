@@ -146,6 +146,18 @@ public final class PlayerMenus implements Listener {
     }
 
     private void queue(Player player, Menu menu) {
+        String networkRole = plugin.getConfig().getString("network.role", "disabled");
+        if (!networkRole.equals("disabled")) {
+            button(menu, 4, Material.PAPER, text(player, "Network practice • no rewards", "Trening sieciowy • bez nagród"),
+                    text(player, "Invite: /heistnet invite <player> · Accept: /heistnet accept", "Zaproś: /heistnet invite <gracz> · Przyjmij: /heistnet accept"), null);
+            if (networkRole.equals("lobby")) {
+                button(menu, 20, Material.LIME_CONCRETE, "Normal", "", p -> { p.closeInventory(); p.performCommand("heistnet queue NORMAL"); });
+                button(menu, 24, Material.RED_CONCRETE, "Hard", "", p -> { p.closeInventory(); p.performCommand("heistnet queue HARD"); });
+                button(menu, 31, Material.BARRIER, text(player, "Cancel unclaimed crew", "Anuluj ekipę przed wejściem"), "",
+                        p -> { p.closeInventory(); p.performCommand("heistnet cancel"); });
+            }
+            return;
+        }
         var available = instances.all().stream().filter(i -> i.match().phase() == MatchPhase.BRIEFING)
                 .sorted(Comparator.comparing(i -> i.match().id())).toList();
         button(menu, 4, Material.PAPER, text(player, "Practice only • no rewards", "Tylko trening • bez nagród"),

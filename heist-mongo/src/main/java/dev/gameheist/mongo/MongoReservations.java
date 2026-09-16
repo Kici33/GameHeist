@@ -91,10 +91,12 @@ public final class MongoReservations implements ReservationRepository {
         if (!snapshot.request().equals(request)) throw new IllegalStateException("Reservation ID reused with a different request");
         return snapshot;
     }
-    private synchronized void ensureIndexes() {
+    synchronized void ensureIndexes() {
         if (indexed) return;
         reservations.createIndex(Indexes.ascending("crewIds"), new IndexOptions().name("one_active_crew_per_player")
                 .unique(true).partialFilterExpression(eq("active", true)));
+        reservations.createIndex(Indexes.ascending("active", "assigned", "arena.id", "arena.version", "difficulty", "createdAt", "_id"),
+                new IndexOptions().name("network_queue_order"));
         reservations.createIndex(Indexes.ascending("assignment.serverId", "assignment.incarnation", "assignment.matchId"),
                 new IndexOptions().name("one_active_crew_per_match").unique(true)
                         .partialFilterExpression(and(eq("active", true), eq("assigned", true))));

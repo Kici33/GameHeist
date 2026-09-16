@@ -62,10 +62,12 @@ public final class HeistPlugin extends JavaPlugin {
             ProfileRepository profileRepository;
             ResultRepository resultRepository;
             String storageMode = getConfig().getString("storage.mode", "memory");
+            boolean networkEnabled = !getConfig().getString("network.role", "disabled").equals("disabled");
+            if (networkEnabled && !storageMode.equals("mongodb")) throw new IllegalArgumentException("Network mode requires MongoDB replica-set storage");
             if (storageMode.equals("mongodb")) {
                 storage = new MongoStore(System.getenv("HEIST_MONGODB_URI"), getConfig().getString("storage.database", "gameheist"),
                         getConfig().getInt("storage.practice-retention-days", 0));
-                profileRepository = storage;
+                profileRepository = networkEnabled ? storage.sessionProfiles() : storage;
                 resultRepository = result -> storage.save(result).thenCompose(ignored -> results.save(result));
             } else if (storageMode.equals("memory")) {
                 getLogger().warning("Memory storage: profiles and results are lost on restart.");
@@ -89,14 +91,21 @@ public final class HeistPlugin extends JavaPlugin {
             Bukkit.getPluginManager().registerEvents(progression, this);
             var menus = new dev.gameheist.paper.menu.PlayerMenus(this, profiles, instances, results);
             Bukkit.getPluginManager().registerEvents(menus, this);
-            var executor = new HeistCommand(instances, arenas, packs, players, results, getLogger(), guards, profiles, storage != null, statistics, drain, menus, progression, leaderboards);
+            var executor = new HeistCommand(instances, arenas, packs, players, results, getLogger(), guards, profiles, storage != null, statistics, drain, menus, progression, leaderboards, networkEnabled);
             command.setExecutor(executor);
             command.setTabCompleter(executor);
             Bukkit.getPluginManager().registerEvents(packs, this);
             Bukkit.getPluginManager().registerEvents(guards, this);
             Bukkit.getPluginManager().registerEvents(combat, this);
             Bukkit.getPluginManager().registerEvents(statistics, this);
-            Bukkit.getPluginManager().registerEvents(new ProfileListener(profiles), this);
+            var network = networkEnabled ? new dev.gameheist.paper.network.NetworkController(this, storage, profiles, instances, packs, players) : null;
+            if (network != null) Bukkit.getPluginManager().registerEvents(network, this);
+            else {
+                Bukkit.getPluginManager().registerEvents(new ProfileListener(profiles), this);
+                Objects.requireNonNull(getCommand("heistnet")).setExecutor((sender, cmd, label, args) -> {
+                    sender.sendMessage("Network queues are disabled on this server."); return true;
+                });
+            }
             Bukkit.getPluginManager().registerEvents(new PracticeListener(instances, arenas, players, getLogger(), gameplay), this);
             if (getConfig().getBoolean("health.enabled")) {
                 health = new HealthServer(new InetSocketAddress(
@@ -121,6 +130,7 @@ public final class HeistPlugin extends JavaPlugin {
                 long tickStarted = System.nanoTime();
                 if (health != null && health.drainRequested()) drain.drain();
                 profiles.tick();
+                if (network != null) network.tick();
                 menus.tick();
                 statistics.tick();
                 leaderboards.tick();
@@ -132,7 +142,7 @@ public final class HeistPlugin extends JavaPlugin {
                 if (health != null) {
                     int active = instances.all().size();
                     health.publish(worlds.accepting() && !instances.draining()
-                            && active < getConfig().getInt("instances.maximum"), drain.status());
+                            && (network != null ? network.accepting() : active < getConfig().getInt("instances.maximum")), drain.status());
                 }
                 if (metricsSampler != null) {
                     try { metricsSampler.tick(System.nanoTime() - tickStarted); }
@@ -144,7 +154,9 @@ public final class HeistPlugin extends JavaPlugin {
                 }
             }, 1, 1);
             Bukkit.getOnlinePlayers().forEach(packs::request);
-            Bukkit.getOnlinePlayers().forEach(player -> profiles.open(player.getUniqueId()));
+            Bukkit.getOnlinePlayers().forEach(player -> {
+                if (network != null) network.joined(player); else profiles.open(player.getUniqueId());
+            });
             getLogger().info("GameHeist foundation enabled: " + arenas.all().size() + " arena version(s); PRACTICE ONLY.");
         } catch (Exception failure) {
             getLogger().log(java.util.logging.Level.SEVERE, "GameHeist initialization failed", failure);

@@ -8,4 +8,5 @@ public interface ProfileRepository {
     CompletionStage<PlayerProfile> loadOrCreate(UUID playerId);
     /** Replacement revision must equal expectedRevision + 1; stale writes fail. */
     CompletionStage<Void> save(PlayerProfile replacement, long expectedRevision);
+    default void closed(UUID playerId) { }
 }

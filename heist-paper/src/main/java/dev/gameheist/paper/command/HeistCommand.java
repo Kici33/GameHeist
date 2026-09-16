@@ -29,6 +29,7 @@ public final class HeistCommand implements TabExecutor {
     private final GuardController guards;
     private final ProfileSessions profiles;
     private final boolean durable;
+    private final boolean networkEnabled;
     private final StatisticsView statistics;
     private final DrainController drain;
     private final ProgressionView progression;
@@ -36,7 +37,7 @@ public final class HeistCommand implements TabExecutor {
     private final dev.gameheist.paper.menu.PlayerMenus menus;
 
     public HeistCommand(InstanceManager instances, ArenaRegistry arenas, ResourcePackGate packs,
-                        PlayerSessions players, InMemoryResultRepository results, Logger logger, GuardController guards, ProfileSessions profiles, boolean durable, StatisticsView statistics, DrainController drain, dev.gameheist.paper.menu.PlayerMenus menus, ProgressionView progression, LeaderboardView leaderboards) {
+                        PlayerSessions players, InMemoryResultRepository results, Logger logger, GuardController guards, ProfileSessions profiles, boolean durable, StatisticsView statistics, DrainController drain, dev.gameheist.paper.menu.PlayerMenus menus, ProgressionView progression, LeaderboardView leaderboards, boolean networkEnabled) {
         this.instances = instances;
         this.arenas = arenas;
         this.packs = packs;
@@ -46,6 +47,7 @@ public final class HeistCommand implements TabExecutor {
         this.guards = guards;
         this.profiles = profiles;
         this.durable = durable;
+        this.networkEnabled = networkEnabled;
         this.statistics = statistics;
         this.drain = drain;
         this.menus = menus;
@@ -55,6 +57,10 @@ public final class HeistCommand implements TabExecutor {
 
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         String action = args.length == 0 ? "menu" : args[0].toLowerCase(Locale.ROOT);
+        if (networkEnabled && Set.of("create", "join", "start").contains(action)) {
+            say(sender, "Use /heistnet in the lobby. Network matches require reserved crew admission.");
+            return true;
+        }
         if (!sender.hasPermission("heist.play") || (!Set.of("help", "controls", "arenas", "list", "join", "profile", "preset", "presetname", "menu", "progression", "leaderboard", "settings", "stats").contains(action)
                 && !sender.hasPermission("heist.admin"))) {
             say(sender, "You do not have permission for this action.");

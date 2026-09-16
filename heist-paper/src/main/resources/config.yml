@@ -1,4 +1,14 @@
 # This foundation runs practice sessions only. No rewards. Durable profiles require MongoDB mode.
+network:
+  # disabled, lobby or backend. Requires MongoDB replica set and a trusted BungeeCord proxy.
+  role: disabled
+  # Must exactly match this server's unique BungeeCord server name.
+  server-id: local-1
+  arena: graybox
+  arena-version: 4
+  # Each backend offers one configured difficulty. Lobby crews may choose either.
+  difficulty: NORMAL
+
 instances:
   maximum: 1
   # Must be an existing non-instance world.
