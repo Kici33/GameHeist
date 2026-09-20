@@ -1,6 +1,6 @@
 # Agones match lifecycle and two-pod acceptance
 
-GameHeist includes an opt-in Agones 1.60 Fleet for two warm `graybox:4` Normal practice backends. The integration is deliberately fail closed: a backend can prepare its empty world and register its Mongo lease, but it cannot claim a queued crew until the Agones SDK reports that exact GameServer as `Allocated`.
+GameHeist includes an opt-in Agones 1.60 Fleet for two warm `brasslock_bank:1` Normal practice backends. The integration is deliberately fail closed: a backend can prepare its empty world and register its Mongo lease, but it cannot claim a queued crew until the Agones SDK reports that exact GameServer as `Allocated`.
 
 ## Lifecycle contract
 

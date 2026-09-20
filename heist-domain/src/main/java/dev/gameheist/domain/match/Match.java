@@ -32,6 +32,8 @@ public final class Match {
     private MatchPhase phase = MatchPhase.BRIEFING;
     private AlarmState alarm = AlarmState.STEALTH;
     private Instant deadline;
+    private Instant briefingDeadline;
+    private boolean started;
     private MatchResult result;
     private final Optional<HeistRun> heist;
     private CombatRun combat;
@@ -51,6 +53,7 @@ public final class Match {
 
     public void join(UUID playerId, Loadout loadout) {
         requirePhase(MatchPhase.BRIEFING);
+        if (started) throw new IllegalStateException("Briefing countdown has started");
         Objects.requireNonNull(playerId);
         catalog.validate(Objects.requireNonNull(loadout));
         if (participants.containsKey(playerId)) throw new IllegalStateException("Player already joined");
@@ -61,13 +64,22 @@ public final class Match {
 
     public void leaveBriefing(UUID playerId) {
         requirePhase(MatchPhase.BRIEFING);
+        if (started) throw new IllegalStateException("Briefing countdown has started");
         if (participants.remove(playerId) == null) throw new IllegalArgumentException("Player is not in crew");
         connections.remove(playerId);
     }
 
     public void start() {
         requirePhase(MatchPhase.BRIEFING);
+        if (started) throw new IllegalStateException("Match already started");
         if (participants.isEmpty()) throw new IllegalStateException("Cannot start an empty crew");
+        started = true;
+        Duration briefing = arena.heist().flatMap(definition -> definition.bankRoute())
+                .map(dev.gameheist.domain.objective.BankRouteDefinition::briefingDuration).orElse(Duration.ZERO);
+        if (!briefing.isZero()) { briefingDeadline = clock.instant().plus(briefing); return; }
+        beginGameplay();
+    }
+    private void beginGameplay() {
         deadline = clock.instant().plus(arena.timeLimit());
         phase = MatchPhase.INFILTRATION;
         if (arena.combat()) combat = new CombatRun(participants, clock, difficulty);
@@ -100,9 +112,10 @@ public final class Match {
     }
 
     public void tick() {
+        if (started && phase == MatchPhase.BRIEFING && !clock.instant().isBefore(briefingDeadline)) beginGameplay();
         expireConnections();
         if (phase.gameplay() && !clock.instant().isBefore(deadline)) finish(MatchOutcome.LOST, "time_limit");
-        if (phase.gameplay() && connections.values().stream().noneMatch(Presence::connected)
+        if ((phase.gameplay() || started) && connections.values().stream().noneMatch(Presence::connected)
                 && connections.values().stream().noneMatch(Presence::reconnectable)) finish(MatchOutcome.LOST, "crew_disconnected_timeout");
         if (phase.gameplay() && combat != null && participants.keySet().stream().noneMatch(id -> combat.active(id)
                 && (connections.get(id).connected() || connections.get(id).reconnectable()))) finish(MatchOutcome.LOST, "crew_incapacitated");
@@ -121,7 +134,8 @@ public final class Match {
     public MatchSnapshot snapshot() {
         return new MatchSnapshot(id, arena.key(), phase, alarm, participants, completed, Optional.ofNullable(result),
                 phase.gameplay() && deadline != null ? OptionalLong.of(Math.max(0,
-                        java.time.Duration.between(clock.instant(), deadline).toMillis())) : OptionalLong.empty(), connectionSnapshot());
+                        java.time.Duration.between(clock.instant(), deadline).toMillis())) : OptionalLong.empty(), connectionSnapshot(),
+                started && phase == MatchPhase.BRIEFING ? OptionalLong.of(Math.max(0, Duration.between(clock.instant(), briefingDeadline).toMillis())) : OptionalLong.empty());
     }
 
     public MatchPhase phase() { return phase; }
@@ -130,6 +144,7 @@ public final class Match {
     public Optional<MatchResult> result() { return Optional.ofNullable(result); }
     public boolean hasParticipant(UUID playerId) { return participants.containsKey(playerId); }
     public int participantCount() { return participants.size(); }
+    public boolean started() { return started; }
     public Loadout loadout(UUID playerId) {
         var loadout = participants.get(playerId);
         if (loadout == null) throw new IllegalArgumentException("Player is not in crew");
@@ -204,7 +219,9 @@ public final class Match {
 
     /** Marks an authoritative roster member away. Repeated callbacks for the same generation are harmless. */
     public long disconnect(UUID playerId) {
-        requireGameplay();
+        tick();
+        if (!phase.gameplay() && !(started && phase == MatchPhase.BRIEFING))
+            throw new IllegalStateException("Match has not started");
         Presence presence = requirePresence(playerId);
         if (!presence.connected()) return presence.generation;
         Instant now = clock.instant();
@@ -219,7 +236,8 @@ public final class Match {
 
     /** Reclaims only the original immutable roster slot; expired slots and stale generations are rejected. */
     public boolean reconnect(UUID playerId, long generation) {
-        requireGameplay();
+        tick();
+        if (!phase.gameplay() && !(started && phase == MatchPhase.BRIEFING)) return false;
         expireConnections();
         Presence presence = requirePresence(playerId);
         if (presence.connected()) return generation == presence.generation;
@@ -239,7 +257,7 @@ public final class Match {
         return Map.copyOf(result);
     }
     private void expireConnections() {
-        if (!phase.gameplay()) return;
+        if (!phase.gameplay() && !started) return;
         Instant now = clock.instant();
         connections.values().forEach(value -> {
             if (value.expiresAt != null && !now.isBefore(value.expiresAt)) value.expired = true;

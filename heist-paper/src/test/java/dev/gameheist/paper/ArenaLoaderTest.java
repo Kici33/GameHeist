@@ -124,4 +124,18 @@ class ArenaLoaderTest {
         Files.writeString(directory.resolve("bad.yml"), guardedSample().replace("[4.5, 65.0, -10.5]", "[0.5, 65.0, 0.5]"));
         assertThrows(IOException.class, () -> ArenaLoader.load(directory));
     }
+    @Test void publishedBrasslockBankHasCompleteAuthoredRoute() throws IOException {
+        try (var stream = Objects.requireNonNull(getClass().getResourceAsStream("/arenas/brasslock-bank-v1.yml"))) {
+            Files.copy(stream, directory.resolve("bank.yml"));
+        }
+        var arena = ArenaLoader.load(directory).require(new ArenaKey("brasslock_bank", 1));
+        var heist = arena.heist().orElseThrow();
+        var route = heist.bankRoute().orElseThrow();
+        assertEquals(30, route.briefingDuration().toSeconds());
+        assertEquals(2, route.cameras().size());
+        assertEquals(4, arena.guards().size());
+        assertTrue(arena.guards().stream().flatMap(guard -> guard.patrol().stream()).anyMatch(point -> point.y() == 73));
+        assertEquals(21, arena.cover().size());
+        assertTrue(arena.combat());
+    }
 }

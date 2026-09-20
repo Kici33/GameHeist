@@ -1,6 +1,6 @@
 # GameHeist
 
-A Minecraft Java **26.1.2** cooperative heist portfolio project. The [GDD](GDD.md) describes the intended game. This repository includes a **combat graybox objective loop** with patrols, suspicion, alarm escalation, carbine fire, and teammate revives. It is not yet the complete minigame or network; the combat slice still needs real-client playtesting.
+A Minecraft Java **26.1.2** cooperative heist portfolio project. The [GDD](GDD.md) describes the intended game. This repository includes the versioned **Brasslock Bank** objective route with two entry paths, cameras, patrols, combat, vault support, loot and authored extraction. It still needs real-client playtesting and production release acceptance.
 
 ## Build
 
@@ -28,12 +28,14 @@ Review and accept Minecraft's EULA yourself when setting up the server. No serve
 - Immutable versioned arena definitions, bounded crews, dependency graph validation, timeout handling, and explicit match states.
 - Instance manager with one default slot, separate worlds/state per session, player membership indexing, drain, asynchronous result acknowledgement, and retryable cleanup.
 - Reverse-order ownership/cleanup of per-instance resources.
-- Paper bootstrap, YAML arena loading, operator commands, role/loadout snapshots, and generated graybox worlds.
+- Paper bootstrap, YAML arena loading, operator commands, role/loadout snapshots, generated legacy grayboxes and the complete `brasslock_bank:1` world.
 - Physical security, a 90-second drill with two seeded jams, proximity repairs, bag transport, and majority-vote extraction in `graybox:2`.
 - Labeled placeholder props, crew HUD, carrying slowdown, and result summaries with secured bag counts.
 - Configured guard patrols, field-of-view/line-of-sight detection, noise investigation, interrupted alarm attempts, pursuit, and last-seen search in `graybox:3`.
 - Staggered guard updates, bounded path requests, stuck retirement, scoped NPC cleanup, and operator diagnostics.
 - Opt-in `graybox:4` combat: carbine, telegraphed guard attacks, bounded recurring reinforcements, incapacitation, revives, crew defeat, and saved combat contributions.
+- Brasslock Bank public hall, staff corridor, security room, vault lanes, side alley, roof route, tutorial apron and extraction yard with four patrol routes and authored cover.
+- A timed 30-second briefing, keycard/camera infiltration, held power-restoration objective, separate majority escape activation and outside-extraction warnings.
 - Admission gated on successful pack application when the development bypass is off.
 - Read-only heartbeat/capacity endpoints: `http://127.0.0.1:8081/live` and `/ready`.
 - Lobby profile loading, three editable preset slots, saved settings, and revision-checked MongoDB profiles/results (opt-in).
@@ -49,12 +51,12 @@ Use a dedicated **26.1.2** test server; the plugin rejects other runtime version
 
 1. Start Paper with the built plugin.
 2. Run `/heist arenas`.
-3. As the host, run `/heist create graybox 3` (or use version 2 for an unguarded objective test).
+3. As the host, run `/heist create brasslock_bank 1`.
 4. Copy the returned UUID or use tab completion.
 5. Run `/heist join <uuid> SCOUT`. Other players may join the same crew (up to four).
 6. Run `/heist start <uuid>`.
-7. Right click the blue security marker, then the orange drill marker. Repair each jam by right clicking the drill and staying within five blocks. Repairs take six seconds, or 4.5 seconds for a Technician.
-8. After the drill finishes, pick up a gold bag and right click the green marker to secure it. Carry one at a time; three bags are required, with two optional bags. Click green again to vote for extraction. A strict crew majority starts a 15-second countdown; at least one member must stay within five blocks of green when it ends. If nobody is there, voting resets and the crew can retry.
+7. Use the 30-second briefing to review the staff and roof entries. Collect the hall keycard, disable the two cameras at the blue security terminal, install the drill and hold the red power panel for five seconds. Repair each jam while staying within five blocks.
+8. Carry gold bags to the extraction-yard deposit. Once enough are secured, a strict crew majority must use the side-alley escape switch. Reach the lit yard before the 20-second countdown ends; the HUD warns each player still outside.
 9. Inspect `/heist results [page]` as host: ten newest-first results per page, including arena, crew size, outcome, loot, and measured run time when available. This lists retained results from this server run, not full MongoDB history. Players return to their original location/game mode/walk speed; the world unloads and its files are deleted asynchronously.
 10. Use `/heist list` for pending persistence/cleanup errors. Failed cleanup retains capacity and retries after five seconds.
 
@@ -64,9 +66,9 @@ Guard name labels show state and suspicion for this development map. `/heist gua
 
 `/heist alarm <uuid>` switches to loud state; `/heist stop <uuid>` aborts a session. `/heist drain` closes admission and profile edits, and reports when acknowledged work and cleanup make shutdown safe. See the [drain protocol](docs/draining.md). Raise `instances.maximum` to two in a local test server to exercise isolation; the intended deployed architecture remains one match per process.
 
-All current sessions are practice sessions: **no rewards or durable player progression**. Combat is enabled only by the new version 4 manifest. Physical interactions validate crew membership, game phase, proximity, and a server-side block ray trace. Offhand duplicate events are ignored. Bags remain authoritative logical objects; with the custom pack enabled, combat crews also get a cosmetic bag in hotbar slot 9 while carrying loot. Disconnects keep the original slot for 90 seconds, leave a vulnerable avatar for 10 seconds, drop carried loot once and restore the same authoritative state on reconnect.
+All current sessions are practice sessions: **no rewards or durable player progression**. Combat is enabled in `graybox:4` and `brasslock_bank:1`. Physical interactions validate crew membership, game phase, proximity, and a server-side block ray trace. Offhand duplicate events are ignored. Bags remain authoritative logical objects; with the custom pack enabled, combat crews also get a cosmetic bag in hotbar slot 9 while carrying loot. Disconnects keep the original slot for 90 seconds, leave a vulnerable avatar for 10 seconds, drop carried loot once and restore the same authoritative state on reconnect.
 
-`graybox:1` remains the original admin-driven lifecycle arena; version 2 keeps the unguarded physical loop; version 3 keeps damage-free guard testing. `/heist complete` works only on version 1, preventing physical state desynchronization. All four versioned manifests are installed without overwriting existing files. Restart after updating the plugin; do not hot-reload it.
+`graybox:1` remains the original admin-driven lifecycle arena; versions 2–4 remain regression and combat test maps. `/heist complete` works only on nonphysical version 1, preventing physical state desynchronization. The published Brasslock and legacy manifests are installed without overwriting existing files. Restart after updating the plugin; do not hot-reload it. See the [map route and acceptance checklist](docs/brasslock-bank.md).
 
 ## Combat practice (`graybox:4`)
 
@@ -101,7 +103,7 @@ See [architecture and extension points](docs/architecture.md), [manual verificat
 
 ## Current operational limits
 
-Redis, BungeeCord/lobby routing, Agones allocation, additional weapons/gadgets, reinforcement playtest acceptance, finished arenas, custom NPC models, and ambient audio are future work. Guards use native-mob placeholders with vanilla goals removed and vanilla damage disabled; version 4 applies custom combat rules. Do not expose this practice adapter as a production network.
+Redis invalidation, additional weapons/gadgets, reinforcement and Brasslock real-client acceptance, custom NPC models, and ambient audio remain future work. Guards use native-mob placeholders with vanilla goals removed and vanilla damage disabled. Do not expose this practice adapter as a production network before the documented deployment gates pass.
 
 With `storage.mode: mongodb`, acknowledged profiles/results persist in MongoDB. The operator history shows only the last 100 acknowledged results from this server run. Memory mode loses all data at restart. Practice results grant no rewards. A separate [transactional production reward API and recovery ledger](docs/rewards.md) requires a MongoDB replica set; `/heist progression` reads its saved/pending state. Production match transport wiring remains unfinished. Health endpoints provide process/admission information, not historical metrics. The health listener defaults to loopback; binding it to a pod interface must be accompanied by network restrictions.
 

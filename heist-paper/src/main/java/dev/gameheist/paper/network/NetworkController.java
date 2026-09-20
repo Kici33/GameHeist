@@ -176,6 +176,7 @@ public final class NetworkController implements Listener, CommandExecutor {
                 nextAllocation = now + 2_000_000_000L;
             }
             if (binding != null && instances.snapshot(prepared.matchId()).match().phase() == MatchPhase.BRIEFING
+                    && instances.snapshot(prepared.matchId()).match().briefingMillis().isEmpty()
                     && instances.snapshot(prepared.matchId()).match().participants().keySet().equals(binding.request().crew().keySet()))
                 instances.start(prepared.matchId());
         } catch (Exception failure) {

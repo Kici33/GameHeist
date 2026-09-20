@@ -8,8 +8,8 @@ spec:
     - matchLabels:
         agones.dev/fleet: gameheist-normal-v4
         gameheist.dev/release: replace-with-git-sha
-        gameheist.dev/arena: graybox
-        gameheist.dev/arena-version: '4'
+        gameheist.dev/arena: brasslock_bank
+        gameheist.dev/arena-version: '1'
         gameheist.dev/difficulty: normal
       gameServerState: Ready
   metadata:

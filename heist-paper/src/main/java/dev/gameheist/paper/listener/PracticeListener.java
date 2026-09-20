@@ -109,6 +109,14 @@ public final class PracticeListener implements Listener {
         if (!players.contains(player.getUniqueId())) return;
         var id = instances.instanceOf(player.getUniqueId());
         if (id.isEmpty()) return;
+        var match = instances.snapshot(id.orElseThrow()).match();
+        if (match.phase() == dev.gameheist.domain.match.MatchPhase.BRIEFING && match.briefingMillis().isEmpty()) {
+            try {
+                instances.leaveBriefing(player.getUniqueId());
+                players.restore(player);
+            } catch (RuntimeException failure) { logger.warning("Could not remove departing briefing player: " + failure); }
+            return;
+        }
         try {
             long generation = instances.disconnect(player.getUniqueId());
             players.suspend(player, generation);

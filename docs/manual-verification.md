@@ -12,7 +12,7 @@ Read the Minecraft EULA and, if you accept, edit the generated `eula.txt` yourse
 
 - Install the bundled Paper jar, not the domain/runtime jars.
 - Verify successful initialization and the practice-only/development-pack warning.
-- Check `/heist arenas` lists `graybox:1`, `graybox:2`, `graybox:3`, and `graybox:4`.
+- Check `/heist arenas` lists `brasslock_bank:1` and legacy `graybox:1` through `graybox:4`.
 - `GET /live` returns 200 after ticks begin; `/ready` returns 200 with free capacity.
 - A malformed arena manifest should disable the plugin with a filename and useful error.
 
@@ -89,6 +89,15 @@ These real-client checks remain pending. Start with two players, then repeat sol
 - Run two version 4 sessions. Shots, guards, revives, waves, contributions, inventory ownership, and cleanup must remain isolated. Disable custom sound in the lobby and check the carbine and alarm are muted while text cues remain.
 
 Acceptance target: two players trigger the alarm, use cover, fight the small wave, revive each other, complete the drill, secure three bags, and extract. Record balance observations and client/server versions; automated rule tests do not establish combat feel or native pathfinding acceptance.
+
+## Brasslock Bank route
+
+- Create `brasslock_bank:1` with two players. During the 30-second briefing, verify the tutorial apron labels, both entry choices and extraction-yard direction are readable; gameplay time must not decrease yet.
+- Take the staff and roof routes separately. Verify every stair/door can be traversed, all four patrols stay on valid surfaces, both vault lanes provide line-of-sight breaks, and neither route forces a single-file chokepoint.
+- Cross an active camera sight line for one second and break sight after the warning; alarm must remain quiet. Repeat for two continuous seconds and verify the alarm. In another run, collect the keycard and disable cameras first; neither camera may detect afterward.
+- Install the drill and wait without restoring power; its timer must stay fixed. Hold the red panel for five seconds, interrupt once by leaving, then complete it and verify drilling begins.
+- Repeat with four players. Verify the scaled loot requirement, strict-majority side-alley escape vote, lit yard boundary and individual `OUTSIDE EXTRACTION` warnings. Leave only one active player inside at expiry and verify the crew wins; leave everyone outside and verify activation resets.
+- Record the client/server versions and any blocked route, unsafe patrol, unreadable objective, HUD overlap or cover exploit. Publish layout/gameplay corrections under a new arena version.
 
 ## General isolation and cleanup
 

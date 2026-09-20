@@ -51,7 +51,7 @@ For a second computer, explicitly configure the bind address and firewall for yo
 
 After startup, use the server console: op YOUR_PLAYER_NAME
 Both players join; /heist controls explains the current input bindings.
-Host: /heist create graybox 4, then both players /heist join INSTANCE_UUID.
+Host: /heist create brasslock_bank 1, then both players /heist join INSTANCE_UUID.
 Host: /heist start INSTANCE_UUID. Follow docs/manual-verification.md in the repository.
 Use /heist drain, wait until safe to stop, then console stop.
 

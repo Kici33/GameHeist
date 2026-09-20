@@ -4,8 +4,8 @@ network:
   role: disabled
   # Must exactly match this server's unique BungeeCord server name.
   server-id: local-1
-  arena: graybox
-  arena-version: 4
+  arena: brasslock_bank
+  arena-version: 1
   # Each backend offers one configured difficulty. Lobby crews may choose either.
   difficulty: NORMAL
 

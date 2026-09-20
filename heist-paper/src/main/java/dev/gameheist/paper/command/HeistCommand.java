@@ -100,7 +100,7 @@ public final class HeistCommand implements TabExecutor {
                         Loot: carry to GREEN and right click to secure; Shift+F returns it to its original marker.
                         Shift+F is reserved for loot return; release sneak to reload with F.
                         Extraction: after minimum loot, right click GREEN to vote; gather there for departure.
-                        Combat equipment is available in graybox:4. /heist settings sound off mutes plugin effects.
+                        Combat equipment is available in brasslock_bank:1 and graybox:4. /heist settings sound off mutes plugin effects.
                         """);
                 case "progression" -> {
                     if (!(sender instanceof Player player)) throw new IllegalStateException("Progression requires a player");

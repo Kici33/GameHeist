@@ -7,14 +7,13 @@ The practice prototype is implemented but not accepted through real-client testi
 - User acceptance of Minecraft EULA, then start the staged local Paper server. EULA currently remains false; no Minecraft server was started in this session.
 - Run the local HTTP readiness checker successfully against the actual server. The current report records connection refusal, not a pass.
 - Complete the two-player graybox:4 checklist: all controls, guard navigation/cover, ammo/reload, self/crew healing, down/revive/interruption, loot return/deposit, votes/extraction, time limits, result feedback, isolation and inventory/world cleanup.
+- Run the `brasslock_bank:1` native-client route checklist with two and four players: staff/roof traversal, camera sight lines, all patrols and cover, power hold, scaled loot, escape vote and outside-yard warnings. Automated route acceptance passes; it does not establish native navigation or readability.
 - Test the unmodified 26.1.2 client with Brasslock 1.2: hand/inventory transforms, prop placement, HUD readability at multiple scales, spatial audio, subtitles, mute behavior, pack failure/reload/cache/timeout paths.
 - Run MongoDB and Influx integration suites with their isolated services and review CI outcomes. Normal local builds skip opt-in service tests; no new live database acceptance is claimed.
 - Test profile persistence, concurrent updates, reconnect during requests, unavailable database, finalization retries and restart recovery as documented.
 
 ## Gameplay still missing from the GDD release
 
-- Finished Brasslock Bank with authored routes, cover, patrols, roof/staff access and extraction area; replace the sparse graybox.
-- Timed briefing and lobby practice/tutorial area, keycard/camera infiltration, vault support/power objective, authored escape activation and warnings for players outside extraction.
 - Resolve and implement intended bleedout/spectator/limited-rescue rules; current revive durations differ from GDD hypotheses. Do not silently assume the GDD's provisional numbers were accepted through playtesting.
 - Additional weapon behaviors and gadgets, threat marking, full role benefits/tradeoffs, camera disruption and detection modifiers.
 - Normal/Hard gameplay differences and solo-to-four-player scaling beyond current initial rules. Tune match duration, damage, detection, repairs and loot through playtests.

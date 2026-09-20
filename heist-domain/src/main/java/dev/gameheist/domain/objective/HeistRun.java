@@ -12,6 +12,7 @@ public final class HeistRun {
     private final HeistDefinition definition;
     private final Clock clock;
     private final long[] jamThresholds;
+    private final Optional<BankRouteDefinition> bankRoute;
     private final Map<UUID, BlockPosition> carried = new HashMap<>();
     private final Set<BlockPosition> unavailable = new HashSet<>();
     private final Map<UUID, dev.gameheist.domain.player.ObjectiveStats> contributions = new HashMap<>();
@@ -21,11 +22,17 @@ public final class HeistRun {
     private long drillWorkMillis;
     private Instant lastTick, repairDeadline, extractionDeadline;
     private UUID repairingPlayer;
+    private boolean keycardCollected, powerRestored, escapeActivated;
+    private final Set<BlockPosition> disabledCameras = new HashSet<>();
+    private final Set<UUID> outsideExtraction = new HashSet<>();
+    private UUID restoringPlayer;
+    private Instant powerDeadline;
 
     public HeistRun(Match match, HeistDefinition definition, Clock clock, long seed) {
         this.match = Objects.requireNonNull(match);
         this.definition = Objects.requireNonNull(definition);
         this.clock = Objects.requireNonNull(clock);
+        this.bankRoute = definition.bankRoute();
         var random = new Random(seed);
         jamThresholds = new long[definition.jams()];
         for (int i = 0; i < jamThresholds.length; i++) {
@@ -37,12 +44,40 @@ public final class HeistRun {
     public String interact(UUID player, BlockPosition block, Position position) {
         if (!match.hasParticipant(player)) throw new IllegalStateException("Player is not in this crew");
         if (!block.within(position, 5)) throw new IllegalStateException("Move closer to the objective");
+        if (bankRoute.isPresent() && block.equals(bankRoute.orElseThrow().keycard())) {
+            if (keycardCollected) return "The crew already has the staff keycard.";
+            keycardCollected = true;
+            contribute(player, false);
+            return "Staff keycard collected. Reach the security room and disable the camera network.";
+        }
         if (block.equals(definition.security())) {
             if (securityDisabled) return "Security is already disabled.";
+            if (bankRoute.isPresent() && !keycardCollected) throw new IllegalStateException("Find the staff keycard first");
             match.completeObjective(definition.securityObjective());
             securityDisabled = true;
+            bankRoute.ifPresent(route -> disabledCameras.addAll(route.cameras()));
             contribute(player, false);
-            return "Security disabled. Install the drill at the orange marker.";
+            return bankRoute.isPresent() ? "Camera network disabled. Choose the hall or roof route to the vault."
+                    : "Security disabled. Install the drill at the orange marker.";
+        }
+        if (bankRoute.isPresent() && block.equals(bankRoute.orElseThrow().power())) {
+            if (!started) throw new IllegalStateException("Install the drill before restoring vault power");
+            if (powerRestored) return "Vault power is already stable.";
+            if (restoringPlayer != null) return "A crewmate is restoring vault power.";
+            restoringPlayer = player;
+            powerDeadline = clock.instant().plus(bankRoute.orElseThrow().powerRestoreDuration());
+            return "Restoring vault power. Stay within five blocks of the panel.";
+        }
+        if (bankRoute.isPresent() && block.equals(bankRoute.orElseThrow().escapeActivation())) {
+            if (secured < requiredBags()) throw new IllegalStateException("Secure the required bags before calling the escape");
+            if (extractionDeadline != null) return "Escape is already inbound. Move to the extraction yard.";
+            votes.add(player);
+            if (votes.size() > match.activeParticipantCount() / 2) {
+                escapeActivated = true;
+                extractionDeadline = clock.instant().plus(definition.extractionDuration());
+                return "Escape activated. Reach the extraction yard before the countdown ends.";
+            }
+            return "Escape vote recorded (" + votes.size() + "/" + (match.activeParticipantCount() / 2 + 1) + ").";
         }
         if (block.equals(definition.drill())) {
             if (!securityDisabled) throw new IllegalStateException("Disable security first");
@@ -51,7 +86,8 @@ public final class HeistRun {
                 started = true;
                 contribute(player, false);
                 lastTick = clock.instant();
-                return "Drill installed. Stay ready to repair jams.";
+                return bankRoute.isPresent() ? "Drill installed. Restore power at the support panel."
+                        : "Drill installed. Stay ready to repair jams.";
             }
             if (jammed) {
                 if (repairingPlayer != null) return "A crewmate is repairing the drill.";
@@ -79,6 +115,9 @@ public final class HeistRun {
                         + "). Click again to vote for extraction once enough bags are secured.";
             }
             if (secured < requiredBags()) throw new IllegalStateException("Secure more bags before extracting");
+            if (bankRoute.isPresent()) return escapeActivated
+                    ? "Escape is inbound. Stay inside the extraction yard."
+                    : "Activate the escape switch in the side alley.";
             if (extractionDeadline != null) return "Extraction is counting down. Stay near the green marker.";
             votes.add(player);
             if (votes.size() > match.activeParticipantCount() / 2) {
@@ -92,10 +131,23 @@ public final class HeistRun {
 
     public void tick(Map<UUID, Position> presentPlayers) {
         Instant now = clock.instant();
+        if (restoringPlayer != null) {
+            Position position = presentPlayers.get(restoringPlayer);
+            if (position == null || !bankRoute.orElseThrow().power().within(position, 5)) {
+                restoringPlayer = null; powerDeadline = null;
+            } else if (!now.isBefore(powerDeadline)) {
+                powerRestored = true;
+                contribute(restoringPlayer, false);
+                restoringPlayer = null; powerDeadline = null;
+                lastTick = now;
+            }
+        }
         if (started && !complete) {
             long elapsed = Math.max(0, Duration.between(lastTick, now).toMillis());
             lastTick = now;
-            if (jammed) {
+            if (bankRoute.isPresent() && !powerRestored) {
+                lastTick = now;
+            } else if (jammed) {
                 if (repairingPlayer != null) {
                     Position position = presentPlayers.get(repairingPlayer);
                     if (position == null || !definition.drill().within(position, 5)) {
@@ -120,14 +172,18 @@ public final class HeistRun {
             }
         }
         if (extractionDeadline != null && !now.isBefore(extractionDeadline)) {
-            boolean someonePresent = presentPlayers.entrySet().stream().anyMatch(entry ->
-                    match.hasParticipant(entry.getKey()) && definition.extraction().within(entry.getValue(), 5));
+            boolean someonePresent = presentPlayers.entrySet().stream().anyMatch(entry -> match.hasParticipant(entry.getKey())
+                    && insideExtraction(entry.getValue()));
             if (someonePresent) match.completeObjective(definition.extractionObjective());
             else {
                 extractionDeadline = null;
+                escapeActivated = false;
                 votes.clear();
             }
-        }
+        } else if (extractionDeadline != null && bankRoute.isPresent()) {
+            outsideExtraction.clear();
+            presentPlayers.forEach((id, position) -> { if (match.activeParticipant(id) && !insideExtraction(position)) outsideExtraction.add(id); });
+        } else outsideExtraction.clear();
     }
 
     /** Return carried loot to its authored marker exactly once; it can be collected again. */
@@ -140,12 +196,14 @@ public final class HeistRun {
     public void incapacitate(UUID player) {
         returnBag(player);
         votes.remove(player);
+        if (player.equals(restoringPlayer)) { restoringPlayer = null; powerDeadline = null; }
         if (player.equals(repairingPlayer)) { repairingPlayer = null; repairDeadline = null; }
     }
     /** Disconnect side effects are idempotent: a carried bag is made available exactly once. */
     public boolean disconnect(UUID player) {
         boolean dropped = returnBag(player);
         votes.remove(player);
+        if (player.equals(restoringPlayer)) { restoringPlayer = null; powerDeadline = null; }
         if (player.equals(repairingPlayer)) { repairingPlayer = null; repairDeadline = null; }
         return dropped;
     }
@@ -164,7 +222,16 @@ public final class HeistRun {
         return new HeistSnapshot(securityDisabled, started, complete, jammed, jamsTriggered,
                 Math.max(0, definition.drillDuration().toMillis() - drillWorkMillis),
                 Optional.ofNullable(repairingPlayer), remaining(repairDeadline), carried, unavailable, secured,
-                requiredBags(), votes.size(), extractionDeadline != null, remaining(extractionDeadline));
+                requiredBags(), votes.size(), extractionDeadline != null, remaining(extractionDeadline), bankRoute.map(route ->
+                new BankRouteSnapshot(keycardCollected, disabledCameras, route.cameras().size(), powerRestored,
+                        Optional.ofNullable(restoringPlayer), remaining(powerDeadline), escapeActivated, outsideExtraction)));
+    }
+    private boolean insideExtraction(Position position) {
+        if (bankRoute.isEmpty()) return definition.extraction().within(position, 5);
+        Position center = bankRoute.orElseThrow().extractionArea().center();
+        double dx = position.x() - center.x(), dy = position.y() - center.y(), dz = position.z() - center.z();
+        double radius = bankRoute.orElseThrow().extractionRadius();
+        return dx * dx + dy * dy + dz * dz <= radius * radius;
     }
     private long remaining(Instant deadline) {
         return deadline == null ? 0 : Math.max(0, Duration.between(clock.instant(), deadline).toMillis());

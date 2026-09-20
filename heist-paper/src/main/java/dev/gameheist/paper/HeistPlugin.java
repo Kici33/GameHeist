@@ -52,6 +52,7 @@ public final class HeistPlugin extends JavaPlugin {
             if (!Files.exists(arenaDirectory.resolve("graybox-v2.yml"))) saveResource("arenas/graybox-v2.yml", false);
             if (!Files.exists(arenaDirectory.resolve("graybox-v3.yml"))) saveResource("arenas/graybox-v3.yml", false);
             if (!Files.exists(arenaDirectory.resolve("graybox-v4.yml"))) saveResource("arenas/graybox-v4.yml", false);
+            if (!Files.exists(arenaDirectory.resolve("brasslock-bank-v1.yml"))) saveResource("arenas/brasslock-bank-v1.yml", false);
             var arenas = ArenaLoader.load(arenaDirectory);
             var fallback = Bukkit.getWorld(Objects.requireNonNull(getConfig().getString("instances.fallback-world")));
             if (fallback == null || fallback.getName().startsWith("heist_")) {

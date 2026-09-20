@@ -68,7 +68,21 @@ public final class ArenaLoader {
                 Duration.ofSeconds(integer(yaml.get("heist.drill.repair-seconds"))), integer(yaml.get("heist.drill.jams")),
                 text(yaml.get("heist.loot.objective")), bags, integer(yaml.get("heist.loot.required-bags")),
                 text(yaml.get("heist.extraction.objective")), block(yaml.get("heist.extraction.block")),
-                Duration.ofSeconds(integer(yaml.get("heist.extraction.duration-seconds")))));
+                Duration.ofSeconds(integer(yaml.get("heist.extraction.duration-seconds"))), bankRoute(yaml)));
+    }
+    private static Optional<BankRouteDefinition> bankRoute(YamlConfiguration yaml) {
+        if (!yaml.contains("heist.bank-route")) return Optional.empty();
+        if (!yaml.isConfigurationSection("heist.bank-route")) throw new IllegalArgumentException("Expected bank-route section");
+        var rawCameras = yaml.getList("heist.bank-route.cameras");
+        if (rawCameras == null) throw new IllegalArgumentException("Expected camera anchors list");
+        return Optional.of(new BankRouteDefinition(
+                Duration.ofSeconds(integer(yaml.get("heist.bank-route.briefing-seconds"))),
+                block(yaml.get("heist.bank-route.keycard")), rawCameras.stream().map(ArenaLoader::block).toList(),
+                block(yaml.get("heist.bank-route.power")),
+                Duration.ofSeconds(integer(yaml.get("heist.bank-route.power-restore-seconds"))),
+                block(yaml.get("heist.bank-route.escape-activation")),
+                block(yaml.get("heist.bank-route.extraction-area")),
+                number(yaml.get("heist.bank-route.extraction-radius"))));
     }
     private static List<GuardDefinition> guards(YamlConfiguration yaml) {
         if (!yaml.contains("guards")) return List.of();

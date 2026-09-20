@@ -94,6 +94,7 @@ public final class HeistGameplay {
             instances.updateHeist(instance.match().id(), present);
             var current = instances.snapshot(instance.match().id());
             var heist = instances.heistSnapshot(instance.match().id()).orElseThrow();
+            updateCameras(current, definition.orElseThrow(), heist, view);
             var combatState = instances.combatSnapshot(current.match().id());
             var warning = view.waveWarning.poll(combatState.map(s -> s.wavesSpawned()).orElse(0), current.match().phase().gameplay() && current.match().result().isEmpty(),
                     combatState.isPresent() ? combatState.orElseThrow().waveRemainingMillis() : OptionalLong.empty());
@@ -190,16 +191,24 @@ public final class HeistGameplay {
 
     private void render(InstanceSnapshot instance, HeistSnapshot state, Presentation view) {
         String instruction;
-        if (instance.match().phase() == MatchPhase.BRIEFING) instruction = "Briefing — waiting for the host to start";
-        else if (!state.securityDisabled()) instruction = "Disable security at the blue marker";
+        var bank = state.bankRoute();
+        if (instance.match().phase() == MatchPhase.BRIEFING) instruction = instance.match().briefingMillis().isPresent()
+                ? "Briefing " + seconds(instance.match().briefingMillis().orElseThrow()) + "s · Staff/roof entries · Keycard → cameras → drill → power → loot → escape"
+                : "Briefing — waiting for the host to start";
+        else if (bank.isPresent() && !bank.orElseThrow().keycardCollected()) instruction = "Find the staff keycard in the public hall";
+        else if (!state.securityDisabled()) instruction = "Disable cameras at the blue security terminal";
         else if (!state.drillStarted()) instruction = "Install the drill at the orange marker";
+        else if (bank.isPresent() && !bank.orElseThrow().powerRestored()) instruction = bank.orElseThrow().restoringPlayer().isPresent()
+                ? "Restoring vault power: " + seconds(bank.orElseThrow().powerRemainingMillis()) + "s — stay close"
+                : "Restore vault power at the red support panel";
         else if (state.jammed()) instruction = state.repairingPlayer().isPresent()
                 ? "Repairing drill: " + seconds(state.repairRemainingMillis()) + "s — stay close"
                 : "DRILL JAMMED — right click the drill to repair";
         else if (!state.drillComplete()) instruction = "Drilling: " + seconds(state.drillRemainingMillis()) + "s remaining";
-        else if (state.extracting()) instruction = "EXTRACT IN " + seconds(state.extractionRemainingMillis()) + "s — gather at green";
+        else if (state.extracting()) instruction = "ESCAPE IN " + seconds(state.extractionRemainingMillis()) + "s — reach the marked yard";
         else if (state.securedBags() < state.requiredBags()) instruction = "Carry gold bags to green: " + state.securedBags() + "/" + state.requiredBags();
-        else instruction = "Minimum loot secured — bring more or vote at green (" + state.extractionVotes() + " votes)";
+        else instruction = bank.isPresent() ? "Minimum loot secured — vote at the side-alley escape switch (" + state.extractionVotes() + " votes)"
+                : "Minimum loot secured — bring more or vote at green (" + state.extractionVotes() + " votes)";
         var combat = instances.combatSnapshot(instance.match().id());
         String responders = combat.filter(snapshot -> snapshot.waveRemainingMillis().isPresent())
                 .map(snapshot -> " · Responders in " + seconds(snapshot.waveRemainingMillis().orElseThrow()) + "s").orElse("");
@@ -243,6 +252,8 @@ public final class HeistGameplay {
                         + (fighter.medkitAvailable() ? " · Medkit: slot 2" : " · Medkit used")
                         + (state.carriedBags().containsKey(playerId) ? " · BAG → GREEN · Shift+F return" : "");
             }
+            if (bank.map(value -> value.outsideExtraction().contains(playerId)).orElse(false))
+                status = "OUTSIDE EXTRACTION — MOVE TO THE LIT YARD · " + status;
             String crewStatus = CrewStatus.format(playerId, crew);
             var feedback = view.hits.get(playerId);
             if (feedback != null && combat.isPresent() && !combat.orElseThrow().players().get(playerId).downed()) {
@@ -266,6 +277,49 @@ public final class HeistGameplay {
             }
         }
         view.lastPhase = instance.match().phase();
+    }
+
+    private void updateCameras(InstanceSnapshot instance, dev.gameheist.domain.objective.HeistDefinition definition,
+                               HeistSnapshot state, Presentation view) {
+        var route = definition.bankRoute();
+        if (route.isEmpty() || state.bankRoute().orElseThrow().camerasDisabled()
+                || instance.match().alarm() == dev.gameheist.domain.match.AlarmState.LOUD
+                || instance.match().phase() != MatchPhase.INFILTRATION) {
+            view.cameraExposure.clear(); return;
+        }
+        World world = Bukkit.getWorld(instance.worldName());
+        if (world == null) return;
+        Set<UUID> visible = new HashSet<>();
+        for (UUID id : instance.match().participants().keySet()) {
+            Player player = Bukkit.getPlayer(id);
+            if (player == null || !player.isOnline() || !players.contains(id) || !instances.activePlayer(id)
+                    || !player.getWorld().equals(world)) continue;
+            for (BlockPosition camera : route.orElseThrow().cameras()) {
+                var origin = new Location(world, camera.x() + .5, camera.y() + .5, camera.z() + .5);
+                var direction = player.getEyeLocation().toVector().subtract(origin.toVector());
+                double distance = direction.length();
+                if (distance > 12 || distance < .1) continue;
+                direction.normalize(); origin.add(direction.clone().multiply(.65));
+                if (world.rayTraceBlocks(origin, direction, Math.max(0, distance - .65), FluidCollisionMode.NEVER, true) == null) {
+                    visible.add(id); break;
+                }
+            }
+        }
+        view.cameraExposure.keySet().retainAll(visible);
+        for (UUID id : visible) {
+            int exposure = view.cameraExposure.merge(id, 1, Integer::sum);
+            Player player = Bukkit.getPlayer(id);
+            if (player != null && exposure == 20) player.sendMessage(Component.text("Camera sees you — break line of sight!", NamedTextColor.RED));
+            if (exposure >= 40) {
+                instances.raiseAlarm(instance.match().id());
+                for (UUID member : instance.match().participants().keySet()) {
+                    Player crew = Bukkit.getPlayer(member);
+                    if (crew != null) crew.sendMessage(Component.text("ALARM! Camera network identified the crew.", NamedTextColor.RED));
+                }
+                view.cameraExposure.clear();
+                break;
+            }
+        }
     }
 
     private void announceResult(InstanceSnapshot instance, Presentation view) {
@@ -305,6 +359,7 @@ public final class HeistGameplay {
         private final Set<UUID> viewers = new HashSet<>();
         private final Set<BlockPosition> hiddenBags = new HashSet<>();
         private final Map<UUID, Long> lastInteraction = new HashMap<>();
+        private final Map<UUID, Integer> cameraExposure = new HashMap<>();
         private MatchPhase lastPhase;
         private boolean resultAnnounced;
         private HeistProps props;

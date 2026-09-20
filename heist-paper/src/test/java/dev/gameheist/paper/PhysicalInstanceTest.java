@@ -73,6 +73,120 @@ class PhysicalInstanceTest {
         manager.shutdown();
     }
 
+    @Test void brasslockRouteEnforcesBriefingKeycardPowerAndAuthoredEscape() throws Exception {
+        try (var source = Objects.requireNonNull(getClass().getResourceAsStream("/arenas/brasslock-bank-v1.yml"))) {
+            Files.copy(source, directory.resolve("bank.yml"));
+        }
+        var registry = ArenaLoader.load(directory);
+        var clock = new MutableClock();
+        var results = new InMemoryResultRepository(10);
+        var manager = new InstanceManager(registry, (id, arena) -> new WorldInstance() {
+            @Override public String name() { return "world-" + id; }
+            @Override public void release() {}
+        }, results, clock, LoadoutCatalog.starter(), 1);
+        var key = new ArenaKey("brasslock_bank", 1);
+        var definition = registry.require(key).heist().orElseThrow();
+        var route = definition.bankRoute().orElseThrow();
+        UUID player = UUID.randomUUID(), match = manager.createPractice(key, Difficulty.NORMAL, 42);
+        manager.join(match, player, Loadout.starter(Role.TECHNICIAN));
+        manager.start(match);
+        assertEquals(MatchPhase.BRIEFING, manager.snapshot(match).match().phase());
+        assertEquals(30_000, manager.snapshot(match).match().briefingMillis().orElseThrow());
+        long briefingGeneration = manager.disconnect(player);
+        assertTrue(manager.canReconnect(player));
+        assertTrue(manager.reconnect(player, briefingGeneration));
+        assertThrows(IllegalStateException.class, () -> manager.interact(player, route.keycard(), route.keycard().center()));
+        clock.advance(Duration.ofSeconds(30)); manager.tick();
+        assertEquals(MatchPhase.INFILTRATION, manager.snapshot(match).match().phase());
+        assertThrows(IllegalStateException.class, () -> manager.interact(player, definition.security(), definition.security().center()));
+        manager.interact(player, route.keycard(), route.keycard().center());
+        manager.interact(player, definition.security(), definition.security().center());
+        assertTrue(manager.heistSnapshot(match).orElseThrow().bankRoute().orElseThrow().camerasDisabled());
+        manager.interact(player, definition.drill(), definition.drill().center());
+        long beforePower = manager.heistSnapshot(match).orElseThrow().drillRemainingMillis();
+        clock.advance(Duration.ofSeconds(30)); manager.updateHeist(match, Map.of(player, definition.drill().center()));
+        assertEquals(beforePower, manager.heistSnapshot(match).orElseThrow().drillRemainingMillis());
+        manager.interact(player, route.power(), route.power().center());
+        clock.advance(Duration.ofSeconds(5)); manager.updateHeist(match, Map.of(player, route.power().center()));
+        assertTrue(manager.heistSnapshot(match).orElseThrow().bankRoute().orElseThrow().powerRestored());
+        for (int jam = 0; jam < 2; jam++) {
+            clock.advance(Duration.ofSeconds(90)); manager.updateHeist(match, Map.of(player, definition.drill().center()));
+            assertTrue(manager.heistSnapshot(match).orElseThrow().jammed());
+            manager.interact(player, definition.drill(), definition.drill().center());
+            clock.advance(Duration.ofMillis(4500)); manager.updateHeist(match, Map.of(player, definition.drill().center()));
+        }
+        clock.advance(Duration.ofSeconds(90)); manager.updateHeist(match, Map.of(player, definition.drill().center()));
+        assertTrue(manager.heistSnapshot(match).orElseThrow().drillComplete());
+        for (var bag : definition.bags().subList(0, definition.requiredBags())) {
+            manager.interact(player, bag, bag.center());
+            manager.interact(player, definition.extraction(), definition.extraction().center());
+        }
+        assertFalse(manager.heistSnapshot(match).orElseThrow().bankRoute().orElseThrow().escapeActivated());
+        manager.interact(player, route.escapeActivation(), route.escapeActivation().center());
+        manager.updateHeist(match, Map.of(player, definition.drill().center()));
+        assertTrue(manager.heistSnapshot(match).orElseThrow().bankRoute().orElseThrow().outsideExtraction().contains(player));
+        clock.advance(definition.extractionDuration());
+        manager.updateHeist(match, Map.of(player, route.extractionArea().center()));
+        manager.tick();
+        assertEquals(MatchOutcome.WON, results.all().getFirst().outcome());
+        assertEquals(3, results.all().getFirst().securedBags());
+    }
+
+    @Test void brasslockAlternateRouteAcceptanceScalesForTwoAndFourPlayers() throws Exception {
+        try (var source = Objects.requireNonNull(getClass().getResourceAsStream("/arenas/brasslock-bank-v1.yml"))) {
+            Files.copy(source, directory.resolve("bank.yml"));
+        }
+        var registry = ArenaLoader.load(directory);
+        for (int crewSize : List.of(2, 4)) {
+            var clock = new MutableClock();
+            var results = new InMemoryResultRepository(10);
+            var manager = new InstanceManager(registry, (id, arena) -> new WorldInstance() {
+                @Override public String name() { return "world-" + id; }
+                @Override public void release() {}
+            }, results, clock, LoadoutCatalog.starter(), 1);
+            var key = new ArenaKey("brasslock_bank", 1);
+            var definition = registry.require(key).heist().orElseThrow();
+            var route = definition.bankRoute().orElseThrow();
+            UUID match = manager.createPractice(key, Difficulty.NORMAL, 77 + crewSize);
+            List<UUID> crew = new ArrayList<>();
+            for (int index = 0; index < crewSize; index++) {
+                UUID player = UUID.randomUUID(); crew.add(player);
+                manager.join(match, player, Loadout.starter(index == 0 ? Role.TECHNICIAN : Role.SCOUT));
+            }
+            manager.start(match); clock.advance(route.briefingDuration()); manager.tick();
+            UUID lead = crew.getFirst();
+            manager.interact(lead, route.keycard(), route.keycard().center());
+            manager.interact(lead, definition.security(), definition.security().center());
+            manager.interact(lead, definition.drill(), definition.drill().center());
+            manager.interact(lead, route.power(), route.power().center());
+            clock.advance(route.powerRestoreDuration()); manager.updateHeist(match, Map.of(lead, route.power().center()));
+            for (int jam = 0; jam < 2; jam++) {
+                clock.advance(definition.drillDuration()); manager.updateHeist(match, Map.of(lead, definition.drill().center()));
+                manager.interact(lead, definition.drill(), definition.drill().center());
+                clock.advance(Duration.ofMillis(4500)); manager.updateHeist(match, Map.of(lead, definition.drill().center()));
+            }
+            clock.advance(definition.drillDuration()); manager.updateHeist(match, Map.of(lead, definition.drill().center()));
+            int bags = manager.heistSnapshot(match).orElseThrow().requiredBags();
+            for (int index = 0; index < bags; index++) {
+                UUID carrier = crew.get(index % crew.size());
+                manager.interact(carrier, definition.bags().get(index), definition.bags().get(index).center());
+                manager.interact(carrier, definition.extraction(), definition.extraction().center());
+            }
+            int majority = crewSize / 2 + 1;
+            for (int index = 0; index < majority - 1; index++) manager.interact(crew.get(index), route.escapeActivation(), route.escapeActivation().center());
+            assertFalse(manager.heistSnapshot(match).orElseThrow().bankRoute().orElseThrow().escapeActivated());
+            manager.interact(crew.get(majority - 1), route.escapeActivation(), route.escapeActivation().center());
+            Map<UUID, Position> split = new HashMap<>();
+            split.put(lead, route.extractionArea().center());
+            for (UUID player : crew.subList(1, crew.size())) split.put(player, definition.drill().center());
+            manager.updateHeist(match, split);
+            assertEquals(crewSize - 1, manager.heistSnapshot(match).orElseThrow().bankRoute().orElseThrow().outsideExtraction().size());
+            clock.advance(definition.extractionDuration()); manager.updateHeist(match, split);
+            manager.tick();
+            assertEquals(MatchOutcome.WON, results.all().getFirst().outcome());
+        }
+    }
+
     private static final class MutableClock extends Clock {
         private Instant now = Instant.parse("2026-09-12T12:00:00Z");
         void advance(Duration duration) { now = now.plus(duration); }

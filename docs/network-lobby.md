@@ -14,8 +14,8 @@ Lobby config:
 network:
   role: lobby
   server-id: lobby-1
-  arena: graybox
-  arena-version: 4
+  arena: brasslock_bank
+  arena-version: 1
 storage:
   mode: mongodb
   database: gameheist
@@ -27,8 +27,8 @@ Normal backend config:
 network:
   role: backend
   server-id: heist-normal-1
-  arena: graybox
-  arena-version: 4
+  arena: brasslock_bank
+  arena-version: 1
   difficulty: NORMAL
 instances:
   maximum: 1

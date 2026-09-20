@@ -11,12 +11,22 @@ public record HeistDefinition(String securityObjective, BlockPosition security,
                               String drillObjective, BlockPosition drill, Duration drillDuration,
                               Duration repairDuration, int jams,
                               String lootObjective, List<BlockPosition> bags, int requiredBags,
-                              String extractionObjective, BlockPosition extraction, Duration extractionDuration) {
+                              String extractionObjective, BlockPosition extraction, Duration extractionDuration,
+                              Optional<BankRouteDefinition> bankRoute) {
+    public HeistDefinition(String securityObjective, BlockPosition security,
+                           String drillObjective, BlockPosition drill, Duration drillDuration,
+                           Duration repairDuration, int jams, String lootObjective, List<BlockPosition> bags,
+                           int requiredBags, String extractionObjective, BlockPosition extraction,
+                           Duration extractionDuration) {
+        this(securityObjective, security, drillObjective, drill, drillDuration, repairDuration, jams,
+                lootObjective, bags, requiredBags, extractionObjective, extraction, extractionDuration, Optional.empty());
+    }
     public HeistDefinition {
         for (String id : List.of(securityObjective, drillObjective, lootObjective, extractionObjective)) Checks.id(id);
         Objects.requireNonNull(security);
         Objects.requireNonNull(drill);
         Objects.requireNonNull(extraction);
+        Objects.requireNonNull(bankRoute);
         bags = List.copyOf(bags);
         if (bags.isEmpty() || bags.size() > 16 || requiredBags < 1 || requiredBags > bags.size()) {
             throw new IllegalArgumentException("Heist needs 1–16 bags and an achievable required bag count");
@@ -37,6 +47,7 @@ public record HeistDefinition(String securityObjective, BlockPosition security,
         for (BlockPosition point : allPositions()) {
             if (!bounds.contains(point.center())) throw new IllegalArgumentException("Heist placement outside arena: " + point);
         }
+        bankRoute.ifPresent(route -> route.validate(bounds, basePositions()));
         if (objectives.size() != 4) throw new IllegalArgumentException("Physical heist recipe requires exactly four objectives");
         require(objectives, securityObjective, ObjectiveType.INTERACT, MatchPhase.INFILTRATION, Set.of());
         require(objectives, drillObjective, ObjectiveType.DRILL, MatchPhase.VAULT, Set.of(securityObjective));
@@ -44,6 +55,11 @@ public record HeistDefinition(String securityObjective, BlockPosition security,
         require(objectives, extractionObjective, ObjectiveType.EXTRACT, MatchPhase.EXTRACTION, Set.of(lootObjective));
     }
     public List<BlockPosition> allPositions() {
+        List<BlockPosition> positions = new ArrayList<>(basePositions());
+        bankRoute.ifPresent(route -> positions.addAll(route.allPositions()));
+        return List.copyOf(positions);
+    }
+    private List<BlockPosition> basePositions() {
         List<BlockPosition> positions = new ArrayList<>(List.of(security, drill, extraction));
         positions.addAll(bags);
         return List.copyOf(positions);

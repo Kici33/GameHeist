@@ -5,11 +5,11 @@ network:
   role: backend
   # Overridden by HEIST_SERVER_ID from GameServer pod metadata.
   server-id: agones-placeholder
-  arena: graybox
-  arena-version: 4
+  arena: brasslock_bank
+  arena-version: 1
   difficulty: NORMAL
 resource-pack:
-  # Supply your real pack, or explicitly enable bypass for a private graybox test.
+  # Supply your real pack, or explicitly enable bypass for a private Brasslock test.
   development-bypass: false
   id: '873f1299-715e-430a-ae57-a43b96f20e92'
   # Replace both placeholders together; Fleet annotations must carry the same immutable identity.

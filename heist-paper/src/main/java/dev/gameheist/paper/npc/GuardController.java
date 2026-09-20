@@ -36,7 +36,7 @@ public final class GuardController implements Listener {
         List<UUID> failed = new ArrayList<>();
         for (var instance : instances.all()) {
             UUID id = instance.match().id();
-            if (instance.state() != InstanceState.RUNNING) {
+            if (instance.state() != InstanceState.RUNNING || !instance.match().phase().gameplay()) {
                 GuardSquad squad = squads.get(id);
                 if (squad != null) squad.pause();
                 continue;

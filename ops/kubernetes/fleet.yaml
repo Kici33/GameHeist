@@ -4,8 +4,8 @@ metadata:
   name: gameheist-normal-v4
   labels:
     app.kubernetes.io/name: gameheist
-    gameheist.dev/arena: graybox
-    gameheist.dev/arena-version: '4'
+    gameheist.dev/arena: brasslock_bank
+    gameheist.dev/arena-version: '1'
     gameheist.dev/difficulty: normal
 spec:
   replicas: 2
@@ -21,13 +21,13 @@ spec:
         app.kubernetes.io/name: gameheist
         app.kubernetes.io/component: match-backend
         gameheist.dev/release: replace-with-git-sha
-        gameheist.dev/arena: graybox
-        gameheist.dev/arena-version: '4'
+        gameheist.dev/arena: brasslock_bank
+        gameheist.dev/arena-version: '1'
         gameheist.dev/difficulty: normal
       annotations:
         gameheist.dev/image-digest: 'sha256:replace-with-image-digest'
         gameheist.dev/resource-pack-sha1: '0000000000000000000000000000000000000000'
-        gameheist.dev/world-template: 'graybox-v4@replace-with-image-digest'
+        gameheist.dev/world-template: 'brasslock-bank-v1@replace-with-image-digest'
     spec:
       container: gameheist
       ports:

@@ -151,7 +151,7 @@ public final class InstanceManager {
         UUID id = playerInstances.get(player);
         if (id == null) return false;
         var match = require(id).match;
-        if (!match.phase().gameplay()) return false;
+        if (!match.phase().gameplay() && !(match.phase() == MatchPhase.BRIEFING && match.started())) return false;
         var connection = match.snapshot().connections().get(player);
         return connection != null && connection.reconnectable();
     }
@@ -281,7 +281,7 @@ public final class InstanceManager {
         var match = entry.match.snapshot();
         InstanceState state = entry.saved ? InstanceState.CLOSING
                 : match.result().isPresent() ? InstanceState.FINALIZING
-                : match.phase() == MatchPhase.BRIEFING ? InstanceState.READY : InstanceState.RUNNING;
+                : match.phase() == MatchPhase.BRIEFING && !entry.match.started() ? InstanceState.READY : InstanceState.RUNNING;
         return new InstanceSnapshot(match, entry.world.name(), state, Optional.ofNullable(entry.error));
     }
     private Entry require(UUID id) {

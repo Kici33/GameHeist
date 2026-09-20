@@ -32,11 +32,9 @@ public final class PaperWorldGateway implements WorldGateway {
         if (arena.spawn().y() != 65 || arena.bounds().minimum().y() < 64) {
             throw new IllegalArgumentException("Practice arenas require spawn Y=65 and minimum Y>=64");
         }
-        if (arena.heist().isPresent() && arena.heist().orElseThrow().allPositions().stream().anyMatch(p -> p.y() != 65)) {
-            throw new IllegalArgumentException("Generated graybox interaction blocks must be at Y=65");
-        }
-        if (arena.guards().stream().flatMap(guard -> guard.patrol().stream()).anyMatch(point -> point.y() != 65)) {
-            throw new IllegalArgumentException("Generated graybox guard routes must be at Y=65");
+        if (arena.heist().isPresent() && arena.heist().orElseThrow().allPositions().stream().anyMatch(p -> p.y() != 65
+                && arena.heist().orElseThrow().bankRoute().map(route -> !route.cameras().contains(p)).orElse(true))) {
+            throw new IllegalArgumentException("Generated interaction blocks must be at Y=65");
         }
         String name = "heist_" + id.toString().replace("-", "");
         Path directory = container.resolve(name);
@@ -59,7 +57,10 @@ public final class PaperWorldGateway implements WorldGateway {
             world.getWorldBorder().setSize(Math.max(arena.bounds().maximum().x() - arena.bounds().minimum().x(),
                     arena.bounds().maximum().z() - arena.bounds().minimum().z()) + 1);
             world.getChunkAt(world.getSpawnLocation()).load();
-            if (arena.heist().isPresent()) GrayboxScene.build(world, arena.heist().orElseThrow());
+            if (arena.heist().isPresent()) {
+                if (arena.heist().orElseThrow().bankRoute().isPresent()) BrasslockBankScene.build(world, arena.heist().orElseThrow());
+                else GrayboxScene.build(world, arena.heist().orElseThrow());
+            }
             for (var block : arena.cover()) world.getBlockAt(block.x(), block.y(), block.z()).setType(Material.STONE_BRICKS, false);
             return new Handle(name, directory, world);
         } catch (Exception failure) {
