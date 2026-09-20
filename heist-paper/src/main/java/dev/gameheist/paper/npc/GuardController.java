@@ -50,7 +50,7 @@ public final class GuardController implements Listener {
                 if (squad == null) {
                     squad = new GuardSquad(arena.guards().stream().map(g -> dev.gameheist.domain.combat.BalanceRules.guard(g, instances.difficulty(id))).toList(), instance.match().participants().keySet(),
                             definition -> {
-                                var actor = new PaperGuardActor(world, definition, ownedEntities, arena.combat());
+                                var actor = new PaperGuardActor(world, definition, ownedEntities, arena.combat(), players::combatEntity);
                                 actors.computeIfAbsent(id, ignored -> new LinkedHashMap<>()).put(definition.id(), actor);
                                 return actor;
                             },
@@ -64,11 +64,22 @@ public final class GuardController implements Listener {
                 List<GuardPlayer> present = new ArrayList<>();
                 for (var member : instance.match().participants().entrySet()) {
                     Player player = Bukkit.getPlayer(member.getKey());
-                    if (player == null || !player.isOnline() || player.isDead() || !players.contains(member.getKey())
-                            || !instances.activePlayer(member.getKey())
-                            || player.getGameMode() != GameMode.ADVENTURE || !player.getWorld().equals(world)) continue;
-                    present.add(new GuardPlayer(member.getKey(), PaperGuardActor.position(player.getLocation()),
-                            PaperGuardActor.position(player.getEyeLocation()), player.isSneaking(), player.isSprinting(), member.getValue().role()));
+                    if (player != null && player.isOnline() && !player.isDead() && players.contains(member.getKey())
+                            && instances.activePlayer(member.getKey())
+                            && player.getGameMode() == GameMode.ADVENTURE && player.getWorld().equals(world)) {
+                        present.add(new GuardPlayer(member.getKey(), PaperGuardActor.position(player.getLocation()),
+                                PaperGuardActor.position(player.getEyeLocation()), player.isSneaking(), player.isSprinting(), member.getValue().role()));
+                        continue;
+                    }
+                    var connection = instance.match().connections().get(member.getKey());
+                    var avatar = players.avatarLocation(member.getKey());
+                    if (connection != null && connection.status() == dev.gameheist.domain.match.ConnectionStatus.VULNERABLE
+                            && avatar != null && avatar.getWorld().equals(world)
+                            && instances.combatSnapshot(id).map(c -> c.players().get(member.getKey()).health() > 0).orElse(true)) {
+                        var eye = avatar.clone().add(0, 1.6, 0);
+                        present.add(new GuardPlayer(member.getKey(), PaperGuardActor.position(avatar),
+                                PaperGuardActor.position(eye), false, false, member.getValue().role()));
+                    }
                 }
                 Optional<Position> noise = Optional.empty();
                 var heist = instances.heistSnapshot(id);

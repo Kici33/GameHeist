@@ -142,6 +142,13 @@ public final class HeistRun {
         votes.remove(player);
         if (player.equals(repairingPlayer)) { repairingPlayer = null; repairDeadline = null; }
     }
+    /** Disconnect side effects are idempotent: a carried bag is made available exactly once. */
+    public boolean disconnect(UUID player) {
+        boolean dropped = returnBag(player);
+        votes.remove(player);
+        if (player.equals(repairingPlayer)) { repairingPlayer = null; repairDeadline = null; }
+        return dropped;
+    }
 
     private int requiredBags() {
         return match.combatEnabled() && match.participantCount() > 0 ? dev.gameheist.domain.combat.BalanceRules.requiredBags(

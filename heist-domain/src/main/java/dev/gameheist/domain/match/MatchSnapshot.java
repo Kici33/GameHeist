@@ -6,11 +6,13 @@ import java.util.*;
 
 public record MatchSnapshot(UUID id, ArenaKey arena, MatchPhase phase, AlarmState alarm,
                             Map<UUID, Loadout> participants, Set<String> completedObjectives,
-                            Optional<MatchResult> result, OptionalLong remainingMillis) {
+                            Optional<MatchResult> result, OptionalLong remainingMillis,
+                            Map<UUID, ParticipantConnection> connections) {
     public MatchSnapshot {
         participants = Map.copyOf(participants);
         completedObjectives = Set.copyOf(completedObjectives);
         Objects.requireNonNull(result);
         Objects.requireNonNull(remainingMillis);
+        connections = Map.copyOf(connections);
     }
 }

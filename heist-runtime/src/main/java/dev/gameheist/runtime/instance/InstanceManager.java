@@ -142,6 +142,28 @@ public final class InstanceManager {
         UUID id = playerInstances.get(player);
         return id != null && require(id).match.activeParticipant(player);
     }
+    public long disconnect(UUID player) {
+        checkThread();
+        return playerMatch(player).disconnect(player);
+    }
+    public boolean canReconnect(UUID player) {
+        checkThread();
+        UUID id = playerInstances.get(player);
+        if (id == null) return false;
+        var match = require(id).match;
+        if (!match.phase().gameplay()) return false;
+        var connection = match.snapshot().connections().get(player);
+        return connection != null && connection.reconnectable();
+    }
+    public boolean reconnect(UUID player, long generation) {
+        checkThread();
+        UUID id = playerInstances.get(player);
+        return id != null && require(id).match.reconnect(player, generation);
+    }
+    public long connectionGeneration(UUID player) {
+        checkThread();
+        return playerMatch(player).connectionGeneration(player);
+    }
     public void registerCombatGuard(UUID id, String guard) { checkThread(); require(id).match.registerCombatGuard(guard); }
     public boolean canFire(UUID player) { checkThread(); return playerMatch(player).canFire(player); }
     public boolean fire(UUID player, Optional<String> guard, double distance, boolean clear) {

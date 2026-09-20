@@ -265,6 +265,23 @@ class InstanceManagerTest {
         assertThrows(IllegalStateException.class, () -> manager.bindReservation(
                 new ReservationSnapshot(original, Optional.of(target), Map.of(), true), target, new LeaseRepository()));
     }
+    @Test void reconnectGenerationRejectsStaleConnectionsAndExpiryIsAGameplayLoss() throws IOException {
+        var manager = manager(worlds, results, 1);
+        UUID id = create(manager), player = UUID.randomUUID();
+        manager.join(id, player, Loadout.starter(Role.SCOUT));
+        manager.start(id);
+        long first = manager.disconnect(player);
+        assertTrue(manager.canReconnect(player));
+        assertFalse(manager.reconnect(player, first - 1));
+        assertTrue(manager.reconnect(player, first));
+        long second = manager.disconnect(player);
+        assertEquals(first + 1, second);
+        assertFalse(manager.reconnect(player, first));
+        clock.advance(Duration.ofSeconds(90));
+        manager.tick();
+        assertEquals(MatchOutcome.LOST, results.all().getFirst().outcome());
+        assertEquals("crew_disconnected_timeout", results.all().getFirst().reason());
+    }
     private CrewReservation reservation(UUID... players) {
         Map<UUID, Loadout> crew = new HashMap<>();
         for (UUID player : players) crew.put(player, Loadout.starter(Role.SCOUT));

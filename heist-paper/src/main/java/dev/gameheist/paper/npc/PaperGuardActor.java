@@ -9,14 +9,17 @@ import org.bukkit.entity.*;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import java.io.IOException;
 import java.util.*;
+import java.util.function.Function;
 
 /** A native mob with vanilla goals removed; only the squad supplies movement decisions. */
 final class PaperGuardActor implements GuardActor {
     private final Vindicator entity;
     private final Set<UUID> ownedEntities;
     private boolean released;
+    private final Function<UUID, LivingEntity> targets;
 
-    PaperGuardActor(World world, GuardDefinition definition, Set<UUID> ownedEntities, boolean combat) throws IOException {
+    PaperGuardActor(World world, GuardDefinition definition, Set<UUID> ownedEntities, boolean combat,
+                    Function<UUID, LivingEntity> targets) throws IOException {
         var start = definition.patrol().getFirst();
         Vindicator spawned = null;
         var partiallyCreated = new java.util.concurrent.atomic.AtomicReference<Vindicator>();
@@ -52,6 +55,7 @@ final class PaperGuardActor implements GuardActor {
             throw new IOException("Could not spawn guard " + definition.id(), failure);
         }
         this.ownedEntities = ownedEntities;
+        this.targets = Objects.requireNonNull(targets);
     }
 
     @Override public boolean alive() { return !released && entity.isValid() && !entity.isDead(); }
@@ -59,8 +63,8 @@ final class PaperGuardActor implements GuardActor {
     @Override public Position position() { return position(entity.getLocation()); }
     @Override public Position eyePosition() { return position(entity.getEyeLocation()); }
     @Override public boolean canSee(UUID playerId) {
-        var player = Bukkit.getPlayer(playerId);
-        return player != null && player.isOnline() && player.getWorld().equals(entity.getWorld()) && entity.hasLineOfSight(player);
+        var target = targets.apply(playerId);
+        return target != null && target.isValid() && target.getWorld().equals(entity.getWorld()) && entity.hasLineOfSight(target);
     }
     @Override public boolean moveTo(Position position, double speed) {
         return entity.getPathfinder().moveTo(location(entity.getWorld(), position), speed);

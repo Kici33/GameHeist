@@ -3,6 +3,7 @@ package dev.gameheist.paper.network;
 import dev.gameheist.domain.arena.ArenaKey;
 import dev.gameheist.domain.match.*;
 import dev.gameheist.domain.match.Difficulty;
+import dev.gameheist.domain.match.ConnectionStatus;
 import dev.gameheist.domain.network.*;
 import dev.gameheist.domain.player.Loadout;
 import dev.gameheist.mongo.*;
@@ -118,6 +119,19 @@ public final class NetworkController implements Listener, CommandExecutor {
                 }
                 continue;
             }
+            var existing = instances.instanceOf(connection.player.getUniqueId());
+            if (existing.isPresent()) {
+                var state = instances.snapshot(existing.orElseThrow()).match().connections().get(connection.player.getUniqueId());
+                if (state != null && state.status() == ConnectionStatus.CONNECTED) {
+                    connection.admitted = true;
+                    if (!connection.profileOpened) { profiles.open(connection.player.getUniqueId()); connection.profileOpened = true; }
+                    if (profiles.status(connection.player.getUniqueId()) == ProfileSessions.Status.READY) profiles.freeze(connection.player.getUniqueId());
+                    continue;
+                }
+                if (state != null && state.status() == ConnectionStatus.EXPIRED) { returnToLobby(connection); continue; }
+                // PracticeListener resumes this exact roster slot after the resource pack is ready.
+                continue;
+            }
             if (connection.admitted) {
                 if (instances.instanceOf(connection.player.getUniqueId()).isEmpty()) returnToLobby(connection);
                 continue;
@@ -212,8 +226,7 @@ public final class NetworkController implements Listener, CommandExecutor {
         }
         var target = reservation.assignment().orElseThrow();
         if (role.equals("lobby")) {
-            if (!reservation.request().expiresAt().isAfter(Instant.now())) return;
-            if (reservation.admissionAttempts().containsKey(id)) return; // A reconnect never reuses a consumed connection attempt.
+            if (!reservation.request().expiresAt().isAfter(Instant.now()) && !reservation.admissionAttempts().containsKey(id)) return;
             transfer(c.player, target.serverId()); return;
         }
         if (!target.equals(prepared) || binding == null || !binding.request().id().equals(reservation.request().id())) { returnToLobby(c); return; }

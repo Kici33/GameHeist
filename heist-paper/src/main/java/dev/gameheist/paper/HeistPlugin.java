@@ -113,7 +113,8 @@ public final class HeistPlugin extends JavaPlugin {
                     sender.sendMessage("Network queues are disabled on this server."); return true;
                 });
             }
-            Bukkit.getPluginManager().registerEvents(new PracticeListener(instances, arenas, players, getLogger(), gameplay), this);
+            var practice = new PracticeListener(instances, arenas, players, getLogger(), gameplay, packs);
+            Bukkit.getPluginManager().registerEvents(practice, this);
             if (getConfig().getBoolean("health.enabled")) {
                 health = new HealthServer(new InetSocketAddress(
                         Objects.requireNonNull(getConfig().getString("health.bind-address")), getConfig().getInt("health.port")),
@@ -145,6 +146,7 @@ public final class HeistPlugin extends JavaPlugin {
                 guards.tick();
                 combat.tick();
                 gameplay.tick();
+                practice.tick();
                 instances.tick();
                 if (health != null) {
                     int active = instances.all().size();

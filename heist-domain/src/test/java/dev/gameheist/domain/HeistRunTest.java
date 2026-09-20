@@ -71,6 +71,19 @@ class HeistRunTest {
         assertFalse(match.returnBag(second));
         assertThrows(IllegalStateException.class, () -> match.returnBag(UUID.randomUUID()));
     }
+    @Test void disconnectDropsCarriedLootExactlyOnceAndReconnectDoesNotDuplicateIt() {
+        var match = match(0, 2);
+        openVault(match);
+        interact(match, first, bags.getFirst());
+        long generation = match.disconnect(first);
+        assertFalse(state(match).carriedBags().containsKey(first));
+        assertFalse(state(match).unavailableBags().contains(bags.getFirst()));
+        assertEquals(generation, match.disconnect(first));
+        assertTrue(match.reconnect(first, generation));
+        interact(match, second, bags.getFirst());
+        assertEquals(bags.getFirst(), state(match).carriedBags().get(second));
+        assertEquals("That bag has already been taken.", interact(match, first, bags.getFirst()));
+    }
     private final Fixtures.MutableClock clock = new Fixtures.MutableClock();
     private final UUID first = UUID.randomUUID(), second = UUID.randomUUID();
     private final BlockPosition security = new BlockPosition(-12, 65, -5);

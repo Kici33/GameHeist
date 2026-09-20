@@ -3,6 +3,8 @@ package dev.gameheist.paper.listener;
 import dev.gameheist.domain.arena.Position;
 import dev.gameheist.paper.gameplay.HeistGameplay;
 import dev.gameheist.paper.world.PlayerSessions;
+import dev.gameheist.paper.pack.ResourcePackGate;
+import dev.gameheist.domain.match.ConnectionStatus;
 import dev.gameheist.runtime.arena.ArenaRegistry;
 import dev.gameheist.runtime.instance.InstanceManager;
 import org.bukkit.entity.Player;
@@ -12,6 +14,7 @@ import org.bukkit.event.entity.*;
 import org.bukkit.event.player.*;
 import org.bukkit.event.inventory.*;
 import java.util.logging.Logger;
+import java.util.UUID;
 
 /** Protects the graybox; combat damage is applied by the domain, never vanilla events. */
 public final class PracticeListener implements Listener {
@@ -20,13 +23,15 @@ public final class PracticeListener implements Listener {
     private final PlayerSessions players;
     private final Logger logger;
     private final HeistGameplay gameplay;
+    private final ResourcePackGate packs;
     public PracticeListener(InstanceManager instances, ArenaRegistry arenas, PlayerSessions players, Logger logger,
-                            HeistGameplay gameplay) {
+                            HeistGameplay gameplay, ResourcePackGate packs) {
         this.instances = instances;
         this.arenas = arenas;
         this.players = players;
         this.logger = logger;
         this.gameplay = gameplay;
+        this.packs = packs;
     }
     @EventHandler(ignoreCancelled = true) public void onDamage(EntityDamageEvent event) {
         if (event.getEntity() instanceof Player player && players.contains(player.getUniqueId())) event.setCancelled(true);
@@ -97,18 +102,47 @@ public final class PracticeListener implements Listener {
         }
     }
     @EventHandler public void onJoin(PlayerJoinEvent event) {
-        if (!players.contains(event.getPlayer().getUniqueId())) return;
-        try { players.restore(event.getPlayer()); }
-        catch (RuntimeException failure) { logger.warning("Could not restore returning practice player: " + failure); }
+        // Admission and resource-pack readiness are reconciled on the owner tick.
     }
     @EventHandler public void onQuit(PlayerQuitEvent event) {
         var player = event.getPlayer();
         if (!players.contains(player.getUniqueId())) return;
         var id = instances.instanceOf(player.getUniqueId());
         if (id.isEmpty()) return;
-        // Abort until reconnect admission is implemented; never pretend the GDD's 90-second flow exists.
-        try { players.restore(player); }
-        catch (RuntimeException failure) { logger.warning("Could not restore departing player: " + failure); }
-        instances.stop(id.orElseThrow(), "practice_player_disconnected");
+        try {
+            long generation = instances.disconnect(player.getUniqueId());
+            players.suspend(player, generation);
+        } catch (RuntimeException failure) {
+            logger.warning("Could not suspend departing practice player: " + failure);
+            try { players.restore(player); }
+            catch (RuntimeException restoreFailure) { logger.warning("Could not restore departing player: " + restoreFailure); }
+        }
+    }
+
+    public void tick() {
+        for (var instance : instances.all()) {
+            instance.match().connections().forEach((playerId, state) -> {
+                if (instance.match().result().isPresent() || state.status() != ConnectionStatus.VULNERABLE) players.hideAvatar(playerId);
+            });
+        }
+        for (Player player : org.bukkit.Bukkit.getOnlinePlayers()) {
+            UUID id = player.getUniqueId();
+            if (!players.suspended(id)) continue;
+            try {
+                var instanceId = instances.instanceOf(id);
+                if (instanceId.isEmpty() || !instances.canReconnect(id)) {
+                    players.restore(player);
+                    player.sendMessage(net.kyori.adventure.text.Component.text("Your reconnect reservation expired."));
+                    continue;
+                }
+                if (!packs.ready(player)) continue;
+                long generation = players.suspendedGeneration(id);
+                if (!instances.reconnect(id, generation)) continue;
+                players.resume(player);
+                player.sendMessage(net.kyori.adventure.text.Component.text("Reconnected to the active heist. Your health, ammo and objectives were preserved."));
+            } catch (RuntimeException failure) {
+                logger.warning("Could not reconcile returning practice player: " + failure);
+            }
+        }
     }
 }

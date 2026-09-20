@@ -5,6 +5,7 @@ import dev.gameheist.domain.player.*;
 import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.UUID;
+import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 class MatchTest {
@@ -117,5 +118,36 @@ class MatchTest {
         assertEquals("shutdown", match.result().orElseThrow().reason());
         assertEquals(MatchOutcome.ABORTED, match.result().orElseThrow().outcome());
         assertThrows(IllegalStateException.class, match::raiseAlarm);
+    }
+    @Test void reconnectUsesExactGenerationAndPreservesRoster() {
+        start();
+        match.completeObjective("security");
+        long generation = match.disconnect(player);
+        assertEquals(ConnectionStatus.VULNERABLE, match.snapshot().connections().get(player).status());
+        assertEquals(generation, match.disconnect(player), "duplicate quit must not open a new grace window");
+        clock.advance(Duration.ofSeconds(10));
+        assertEquals(ConnectionStatus.RESERVED, match.snapshot().connections().get(player).status());
+        assertFalse(match.reconnect(player, generation - 1));
+        assertTrue(match.reconnect(player, generation));
+        assertEquals(ConnectionStatus.CONNECTED, match.snapshot().connections().get(player).status());
+        assertEquals(1, match.participantCount());
+        assertEquals(Role.SCOUT, match.loadout(player).role());
+        assertEquals(Set.of("security"), match.snapshot().completedObjectives());
+    }
+    @Test void allDisconnectedGraceIsGameplayLossAndIndividualExpiryContinuesShortHanded() {
+        UUID second = UUID.randomUUID();
+        match.join(player, Loadout.starter(Role.SCOUT));
+        match.join(second, Loadout.starter(Role.SUPPORT));
+        match.start();
+        match.disconnect(player);
+        clock.advance(Duration.ofSeconds(90));
+        match.tick();
+        assertTrue(match.result().isEmpty());
+        assertEquals(ConnectionStatus.EXPIRED, match.snapshot().connections().get(player).status());
+        match.disconnect(second);
+        clock.advance(Duration.ofSeconds(90));
+        match.tick();
+        assertEquals(MatchOutcome.LOST, match.result().orElseThrow().outcome());
+        assertEquals("crew_disconnected_timeout", match.result().orElseThrow().reason());
     }
 }

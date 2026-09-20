@@ -51,7 +51,7 @@ Transfers use the official outgoing `BungeeCord` plugin channel, with the `Conne
 5. A compatible backend atomically claims the oldest waiting crew. It binds the reservation to its prepared match before publishing readiness. Lobby polling sends each member to that exact backend.
 6. Backend entry requires the same server ID, process incarnation, match UUID and generation; successful pack application; atomic admission consumption for this connection attempt; and an acknowledged profile load. The match starts automatically only after the complete reserved crew arrives before the deadline.
 7. `/heistnet cancel` cancels only an entirely unclaimed reservation. Once any admission has been consumed, the crew stays reserved until backend finalization or dead-backend recovery. A reconnect receives a fresh attempt ID and cannot reuse an earlier consumed admission.
-8. After saved results and cleanup, players transfer to a registered healthy lobby. Existing practice behavior still aborts the match when an admitted player disconnects; reconnect-to-live-match grace is not implemented.
+8. An admitted disconnect retains its immutable backend slot for 90 seconds. A consumed reservation routes only that original participant back to the assigned live backend, where the current connection generation is checked before the same state is resumed. After saved results and cleanup, players transfer to a registered healthy lobby.
 
 ## Authority and failure behavior
 

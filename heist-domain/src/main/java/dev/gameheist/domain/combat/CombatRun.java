@@ -146,8 +146,17 @@ public final class CombatRun {
     }
     public boolean claimWave(boolean loud) { return claimReinforcements(loud, dev.gameheist.domain.match.MatchPhase.INFILTRATION) > 0; }
     public int claimReinforcements(boolean loud, dev.gameheist.domain.match.MatchPhase phase) {
-        return director.claim(loud, phase, (int) players.values().stream().filter(p -> p.health > 0).count(),
+        return claimReinforcements(loud, phase, (int) players.values().stream().filter(p -> p.health > 0).count());
+    }
+    public int claimReinforcements(boolean loud, dev.gameheist.domain.match.MatchPhase phase, int availableCrew) {
+        return director.claim(loud, phase, availableCrew,
                 (int) guards.values().stream().filter(g -> g.health > 0).count(), guards.size());
+    }
+    public void disconnect(UUID id) {
+        Fighter fighter = require(id);
+        cancelRevive(fighter);
+        players.values().forEach(player -> { if (id.equals(player.reviving)) cancelRevive(player); });
+        guards.values().forEach(guard -> { if (id.equals(guard.target)) guard.target = null; });
     }
     public void retireGuard(String id) {
         var guard = guards.get(id);

@@ -15,7 +15,6 @@ The practice prototype is implemented but not accepted through real-client testi
 
 - Finished Brasslock Bank with authored routes, cover, patrols, roof/staff access and extraction area; replace the sparse graybox.
 - Timed briefing and lobby practice/tutorial area, keycard/camera infiltration, vault support/power objective, authored escape activation and warnings for players outside extraction.
-- Reconnect slot grace, vulnerable disconnected avatar, one-time loot handling, authoritative state restoration and short-handed continuation. Current disconnect aborts the entire practice run.
 - Resolve and implement intended bleedout/spectator/limited-rescue rules; current revive durations differ from GDD hypotheses. Do not silently assume the GDD's provisional numbers were accepted through playtesting.
 - Additional weapon behaviors and gadgets, threat marking, full role benefits/tradeoffs, camera disruption and detection modifiers.
 - Normal/Hard gameplay differences and solo-to-four-player scaling beyond current initial rules. Tune match duration, damage, detection, repairs and loot through playtests.

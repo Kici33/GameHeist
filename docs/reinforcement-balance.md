@@ -35,8 +35,8 @@ soft live cap, no reinforcements arrive until population drops below it.
 
 Saturation cancels the pending deadline. Once room becomes available a fresh full
 delay is scheduled; there is no immediate surprise spawn. Downed players reduce
-future-wave pressure, while existing guards stay alive. This is not disconnect
-grace: disconnect still follows the current practice-abort behavior. Missing or
+future-wave pressure, while existing guards stay alive. During disconnect grace,
+only connected non-downed crew members count for a future wave. Missing or
 retired Paper actors are marked retired in combat without awarding damage credit.
 
 Each wave has its own five-second warning; optional result/title motion settings

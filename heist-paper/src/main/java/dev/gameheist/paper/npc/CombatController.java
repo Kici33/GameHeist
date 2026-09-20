@@ -8,6 +8,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.*;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
@@ -38,9 +39,10 @@ public final class CombatController implements Listener {
             UUID id = instance.match().id();
             if (instance.state() != InstanceState.RUNNING || !instance.match().phase().gameplay() || instances.combatSnapshot(id).isEmpty()) continue;
             try {
+                var combat = instances.combatSnapshot(id).orElseThrow();
                 for (UUID playerId : instance.match().participants().keySet()) {
                     Player player = present(playerId, instance);
-                    if (player != null) players.equipCombat(player);
+                    if (player != null) players.equipCombat(player, combat.players().get(playerId).medkitAvailable());
                 }
                 int reinforcementCount = instances.claimReinforcements(id);
                 if (reinforcementCount > 0) {
@@ -54,21 +56,24 @@ public final class CombatController implements Listener {
                     if (!actor.alive()) { instances.retireGuard(id, diagnostic.id()); continue; }
                     var state = instances.combatSnapshot(id).orElseThrow();
                     if (state.guards().getOrDefault(diagnostic.id(), 0) == 0) { actor.release(); continue; }
-                    Player target = diagnostic.decision().targetId().map(playerId -> present(playerId, instance)).orElse(null);
+                    UUID targetId = diagnostic.decision().targetId().orElse(null);
+                    LivingEntity target = targetId == null ? null : players.combatEntity(targetId);
                     boolean eligible = actor.alive() && diagnostic.decision().state() == GuardState.PURSUIT && target != null;
                     double distance = eligible ? Math.sqrt(dev.gameheist.domain.npc.GuardPerception.distanceSquared(
                             actor.eyePosition(), PaperGuardActor.position(target.getEyeLocation()))) : Double.POSITIVE_INFINITY;
-                    var attack = instances.attack(id, diagnostic.id(), Optional.ofNullable(target).map(Player::getUniqueId),
-                            distance, eligible && actor.canSee(target.getUniqueId()));
+                    var attack = instances.attack(id, diagnostic.id(), Optional.ofNullable(targetId),
+                            distance, eligible && actor.canSee(targetId));
                     if (attack == CombatRun.Attack.AIMING) {
-                        target.sendMessage(Component.text(diagnostic.id() + " is aiming at you — take cover!", NamedTextColor.GOLD));
+                        if (target instanceof Player targetPlayer) targetPlayer.sendMessage(Component.text(diagnostic.id() + " is aiming at you — take cover!", NamedTextColor.GOLD));
                     } else if (attack == CombatRun.Attack.HIT) {
-                        if (state.players().get(target.getUniqueId()).reviving().isPresent())
-                            target.sendMessage(Component.text("Revive interrupted: you took damage.", NamedTextColor.YELLOW));
-                        boolean downed = !instances.activePlayer(target.getUniqueId());
-                        target.sendMessage(Component.text(downed ? "DOWNED — a teammate must revive you. Carried loot returned to its marker."
-                                : "Hit by " + diagnostic.id() + "!", NamedTextColor.RED));
-                        if (downed) broadcast(instance, target.getName() + " is down! Sneak + right click them to revive.");
+                        if (target instanceof Player targetPlayer) {
+                            if (state.players().get(targetId).reviving().isPresent())
+                                targetPlayer.sendMessage(Component.text("Revive interrupted: you took damage.", NamedTextColor.YELLOW));
+                            boolean downed = !instances.activePlayer(targetId);
+                            targetPlayer.sendMessage(Component.text(downed ? "DOWNED — a teammate must revive you. Carried loot returned to its marker."
+                                    : "Hit by " + diagnostic.id() + "!", NamedTextColor.RED));
+                            if (downed) broadcast(instance, targetPlayer.getName() + " is down! Sneak + right click them to revive.");
+                        }
                     }
                 }
                 if (!instances.snapshot(id).match().phase().gameplay()) continue;
