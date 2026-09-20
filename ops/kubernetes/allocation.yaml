@@ -1,0 +1,17 @@
+apiVersion: allocation.agones.dev/v1
+kind: GameServerAllocation
+metadata:
+  generateName: gameheist-normal-v4-
+  namespace: gameheist
+spec:
+  selectors:
+    - matchLabels:
+        agones.dev/fleet: gameheist-normal-v4
+        gameheist.dev/release: replace-with-git-sha
+        gameheist.dev/arena: graybox
+        gameheist.dev/arena-version: '4'
+        gameheist.dev/difficulty: normal
+      gameServerState: Ready
+  metadata:
+    annotations:
+      gameheist.dev/reservation-id: replace-with-reservation-uuid

@@ -16,6 +16,7 @@ import dev.gameheist.paper.world.*;
 import dev.gameheist.runtime.instance.InstanceManager;
 import dev.gameheist.runtime.health.HealthServer;
 import dev.gameheist.runtime.health.DrainController;
+import dev.gameheist.runtime.agones.AgonesLifecycle;
 import dev.gameheist.runtime.persistence.InMemoryResultRepository;
 import dev.gameheist.runtime.persistence.*;
 import dev.gameheist.mongo.MongoStore;
@@ -37,6 +38,7 @@ public final class HeistPlugin extends JavaPlugin {
     private DrainController drain;
     private InfluxMetricsExporter metrics;
     private PaperMetrics metricsSampler;
+    private AgonesLifecycle agones;
 
     @Override public void onEnable() {
         try {
@@ -98,7 +100,12 @@ public final class HeistPlugin extends JavaPlugin {
             Bukkit.getPluginManager().registerEvents(guards, this);
             Bukkit.getPluginManager().registerEvents(combat, this);
             Bukkit.getPluginManager().registerEvents(statistics, this);
-            var network = networkEnabled ? new dev.gameheist.paper.network.NetworkController(this, storage, profiles, instances, packs, players) : null;
+            var agonesOptional = AgonesLifecycle.fromEnvironment(getLogger()::warning);
+            agones = agonesOptional.orElse(null);
+            if (agones != null && !"backend".equals(getConfig().getString("network.role")))
+                throw new IllegalArgumentException("Agones SDK integration requires network.role=backend");
+            var network = networkEnabled ? new dev.gameheist.paper.network.NetworkController(this, storage, profiles, instances, packs, players,
+                    agones == null ? () -> true : agones::allocated, agones != null) : null;
             if (network != null) Bukkit.getPluginManager().registerEvents(network, this);
             else {
                 Bukkit.getPluginManager().registerEvents(new ProfileListener(profiles), this);
@@ -144,6 +151,10 @@ public final class HeistPlugin extends JavaPlugin {
                     health.publish(worlds.accepting() && !instances.draining()
                             && (network != null ? network.accepting() : active < getConfig().getInt("instances.maximum")), drain.status());
                 }
+                if (agones != null) {
+                    var status = drain.status();
+                    agones.tick(network != null && network.accepting(), status.draining(), status.safeToStop());
+                }
                 if (metricsSampler != null) {
                     try { metricsSampler.tick(System.nanoTime() - tickStarted); }
                     catch (RuntimeException samplingFailure) {
@@ -166,6 +177,7 @@ public final class HeistPlugin extends JavaPlugin {
     @Override public void onDisable() {
         Bukkit.getScheduler().cancelTasks(this);
         if (health != null) health.close();
+        if (agones != null) agones.close();
         if (metrics != null) metrics.close();
         if (packs != null) packs.close();
         if (drain != null) {

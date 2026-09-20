@@ -38,6 +38,7 @@ Review and accept Minecraft's EULA yourself when setting up the server. No serve
 - Read-only heartbeat/capacity endpoints: `http://127.0.0.1:8081/live` and `/ready`.
 - Lobby profile loading, three editable preset slots, saved settings, and revision-checked MongoDB profiles/results (opt-in).
 - Opt-in network practice crews, durable queues, leased backend registration, exact BungeeCord routing and fenced profile sessions. See [network configuration and acceptance](docs/network-lobby.md).
+- Opt-in Agones REST lifecycle and a restricted two-replica Fleet that gates Mongo crew claims on observed allocation. See [Agones release and cluster acceptance](docs/agones.md).
 - Regression tests, dependency locks, reproducible jar settings, and CI configuration.
 
 Profiles are connected to practice joins through saved presets. Graphical menus provide crew/session navigation, loadouts, settings and personal results; network lobbies also expose Normal/Hard queue buttons.

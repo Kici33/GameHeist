@@ -32,7 +32,7 @@ The practice prototype is implemented but not accepted through real-client testi
 
 - Optional lobby/crew queues, transactional allocation, backend registration, exact-server BungeeCord requests, incomplete-crew timeout, dead-backend recovery and healthy-lobby return are implemented for practice. Six native replica-set integration tests passed; real BungeeCord/client transfer, outage and deployment acceptance remain open in issue #10. See [setup and checklist](network-lobby.md).
 - Redis invalidation/session/cache integration with reconciliation where required; reward correctness must remain independent of disposable messages.
-- Agones allocation and fleet lifecycle, immutable world templates and asynchronous preparation, exact version/pack binding, two independent match pods.
+- Agones SDK health/Ready/Allocated/Shutdown fencing, a two-replica restricted Fleet, immutable release labels and a real-cluster acceptance script are implemented. Complete the proxy registrar, real two-pod/failure evidence and asynchronous authored-world template preparation; see [Agones release and acceptance](agones.md).
 - Validate Kubernetes manifests in a real cluster: forwarding and network isolation, restricted credentials/RBAC/secrets, startup/readiness/liveness, draining/termination, proxy/backend/pod failures and visible lobby recovery.
 - Production packaging/release manifests, rollback and retention of assets used by active matches. No transparent restoration of a live match after node loss is promised by the GDD.
 

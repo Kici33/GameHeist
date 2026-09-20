@@ -1,0 +1,156 @@
+apiVersion: agones.dev/v1
+kind: Fleet
+metadata:
+  name: gameheist-normal-v4
+  labels:
+    app.kubernetes.io/name: gameheist
+    gameheist.dev/arena: graybox
+    gameheist.dev/arena-version: '4'
+    gameheist.dev/difficulty: normal
+spec:
+  replicas: 2
+  scheduling: Distributed
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gameheist
+        app.kubernetes.io/component: match-backend
+        gameheist.dev/release: replace-with-git-sha
+        gameheist.dev/arena: graybox
+        gameheist.dev/arena-version: '4'
+        gameheist.dev/difficulty: normal
+      annotations:
+        gameheist.dev/image-digest: 'sha256:replace-with-image-digest'
+        gameheist.dev/resource-pack-sha1: '0000000000000000000000000000000000000000'
+        gameheist.dev/world-template: 'graybox-v4@replace-with-image-digest'
+    spec:
+      container: gameheist
+      ports:
+        - name: minecraft
+          containerPort: 25565
+          portPolicy: None
+          protocol: TCP
+      health:
+        disabled: false
+        initialDelaySeconds: 120
+        periodSeconds: 5
+        failureThreshold: 3
+      sdkServer:
+        logging: Error
+        httpPort: 9358
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: gameheist
+            app.kubernetes.io/component: match-backend
+        spec:
+          serviceAccountName: gameheist-backend
+          automountServiceAccountToken: false
+          terminationGracePeriodSeconds: 1300
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            fsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: gameheist
+              image: registry.example.invalid/gameheist@sha256:replace-with-image-digest
+              imagePullPolicy: IfNotPresent
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ['ALL']
+              env:
+                - name: EULA
+                  value: 'false'
+                - name: HEIST_DRAIN_TIMEOUT_SECONDS
+                  value: '1250'
+                - name: HEIST_SERVER_ID
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: HEIST_MONGODB_URI
+                  valueFrom:
+                    secretKeyRef:
+                      name: gameheist-secrets
+                      key: mongodb-uri
+                - name: HEIST_DRAIN_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: gameheist-secrets
+                      key: drain-token
+                - name: HEIST_PROXY_FORWARDING_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: gameheist-secrets
+                      key: proxy-forwarding-secret
+                - name: HEIST_INFLUX_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: gameheist-secrets
+                      key: influx-token
+                      optional: true
+              ports:
+                - name: minecraft
+                  containerPort: 25565
+                - name: health
+                  containerPort: 8081
+              resources:
+                requests:
+                  cpu: '1'
+                  memory: 2Gi
+                  ephemeral-storage: 2Gi
+                limits:
+                  cpu: '2'
+                  memory: 3Gi
+                  ephemeral-storage: 4Gi
+              startupProbe:
+                httpGet:
+                  path: /live
+                  port: health
+                periodSeconds: 5
+                timeoutSeconds: 2
+                failureThreshold: 60
+              livenessProbe:
+                httpGet:
+                  path: /live
+                  port: health
+                periodSeconds: 10
+                timeoutSeconds: 2
+                failureThreshold: 3
+              readinessProbe:
+                httpGet:
+                  path: /ready
+                  port: health
+                periodSeconds: 2
+                timeoutSeconds: 1
+              lifecycle:
+                preStop:
+                  exec:
+                    command: ['java', '-Xmx32m', '-cp', '/opt/gameheist/gameheist.jar', 'dev.gameheist.runtime.health.DrainHook']
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+                - name: temporary
+                  mountPath: /tmp
+                - name: configuration
+                  mountPath: /config
+                  readOnly: true
+          volumes:
+            - name: data
+              emptyDir:
+                sizeLimit: 3Gi
+            - name: temporary
+              emptyDir:
+                sizeLimit: 256Mi
+            - name: configuration
+              configMap:
+                name: gameheist-config-v4-replace-with-git-sha

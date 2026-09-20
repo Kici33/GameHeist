@@ -2,3 +2,5 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: gameheist
+  labels:
+    gameheist.dev/component: matches

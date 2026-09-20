@@ -46,6 +46,9 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
+      - uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.34.11'
       - name: Start disposable reward replica set
         run: |
           docker run -d --name heist-reward-tests -p 127.0.0.1:27029:27029 mongo:8.0.12 --replSet heist-test --bind_ip_all --port 27029
@@ -58,6 +61,11 @@ jobs:
         run: bash ./gradlew clean build --no-daemon
       - name: Test local readiness checker
         run: python3 -m unittest discover -s ops/server -p 'test_*.py'
+      - name: Render and verify Agones release template
+        run: |
+          mkdir -p build/deployment
+          kubectl kustomize ops/kubernetes -o build/deployment/gameheist-agones.yaml
+          python3 ops/kubernetes/verify_rendered.py build/deployment/gameheist-agones.yaml
       - name: Build server image without starting Minecraft
         run: docker build -f ops/server/Dockerfile -t gameheist:26.1.2-dev .
       - name: Verify image and EULA refusal
@@ -71,6 +79,11 @@ jobs:
         with:
           name: test-reports
           path: '**/build/reports/tests/'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rendered-agones-template
+          path: build/deployment/gameheist-agones.yaml
       - uses: actions/upload-artifact@v4
         with:
           name: GameHeist-resource-pack

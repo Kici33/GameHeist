@@ -1,12 +1,20 @@
 instances:
   maximum: 1
   fallback-world: world
+network:
+  role: backend
+  # Overridden by HEIST_SERVER_ID from GameServer pod metadata.
+  server-id: agones-placeholder
+  arena: graybox
+  arena-version: 4
+  difficulty: NORMAL
 resource-pack:
   # Supply your real pack, or explicitly enable bypass for a private graybox test.
   development-bypass: false
   id: '873f1299-715e-430a-ae57-a43b96f20e92'
-  url: ''
-  sha1: ''
+  # Replace both placeholders together; Fleet annotations must carry the same immutable identity.
+  url: 'https://assets.example.invalid/gameheist-brasslock-1.2.zip'
+  sha1: '0000000000000000000000000000000000000000'
   timeout-seconds: 60
 health:
   enabled: true

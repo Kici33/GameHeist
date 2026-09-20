@@ -3,12 +3,29 @@ kind: Kustomization
 namespace: gameheist
 resources:
   - namespace.yaml
-  - deployment.yaml
-  - service.yaml
+  - service-account.yaml
+  - allocator-rbac.yaml
+  - fleet.yaml
+  - network-policy.yaml
 configMapGenerator:
-  - name: gameheist-config
+  - name: gameheist-config-v4-replace-with-git-sha
     files:
       - config/config.yml
       - config/server.properties
+      - config/paper-global.yml
+      - config/spigot.yml
       - config/whitelist.json
       - config/ops.json
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    app.kubernetes.io/name: gameheist
+    app.kubernetes.io/managed-by: kustomize
+patches:
+  - target:
+      kind: ConfigMap
+      name: gameheist-config-v4-replace-with-git-sha
+    patch: |-
+      - op: add
+        path: /immutable
+        value: true

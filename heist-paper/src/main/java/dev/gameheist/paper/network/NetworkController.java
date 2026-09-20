@@ -23,6 +23,7 @@ import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
+import java.util.function.BooleanSupplier;
 
 /** Optional practice-network adapter. Mongo acknowledgements are polled only on Paper's owner thread. */
 public final class NetworkController implements Listener, CommandExecutor {
@@ -37,6 +38,8 @@ public final class NetworkController implements Listener, CommandExecutor {
     private final ArenaKey arena;
     private final Difficulty difficulty;
     private final LobbyCrews crews = new LobbyCrews(Clock.systemUTC());
+    private final BooleanSupplier allocationGate;
+    private final boolean oneShot;
     private final Map<UUID, Connection> connections = new HashMap<>();
     private final List<QueuedCrew> queued = new ArrayList<>();
     private CompletableFuture<Void> heartbeat;
@@ -52,11 +55,12 @@ public final class NetworkController implements Listener, CommandExecutor {
     private long nextAllocation;
 
     public NetworkController(JavaPlugin plugin, MongoStore store, ProfileSessions profiles, InstanceManager instances,
-                             ResourcePackGate packs, PlayerSessions players) {
+                             ResourcePackGate packs, PlayerSessions players, BooleanSupplier allocationGate, boolean oneShot) {
         this.plugin = plugin; this.store = Objects.requireNonNull(store); this.profiles = profiles;
         this.instances = instances; this.packs = packs; this.players = players;
+        this.allocationGate = Objects.requireNonNull(allocationGate); this.oneShot = oneShot;
         role = plugin.getConfig().getString("network.role", "disabled");
-        server = Objects.requireNonNull(plugin.getConfig().getString("network.server-id"));
+        server = System.getenv().getOrDefault("HEIST_SERVER_ID", Objects.requireNonNull(plugin.getConfig().getString("network.server-id")));
         if (!Set.of("lobby", "backend").contains(role)) throw new IllegalArgumentException("Network role must be lobby or backend");
         new BackendAssignment(server, incarnation, UUID.randomUUID(), 1);
         arena = new ArenaKey(plugin.getConfig().getString("network.arena", "graybox"), plugin.getConfig().getInt("network.arena-version", 4));
@@ -136,6 +140,11 @@ public final class NetworkController implements Listener, CommandExecutor {
         try {
             if (prepared != null && instances.all().stream().noneMatch(i -> i.match().id().equals(prepared.matchId()))) {
                 if (allocation != null || publication != null) throw new IllegalStateException("Prepared world lost with allocation in flight");
+                if (oneShot && binding != null) {
+                    instances.drain(); profiles.drain();
+                    prepared = null; binding = null;
+                    return;
+                }
                 prepared = null; binding = null; publication = null; allocation = null;
             }
             if (prepared == null) prepared = new BackendAssignment(server, incarnation, instances.createPractice(arena, difficulty, new Random().nextLong()), 1);
@@ -148,7 +157,7 @@ public final class NetworkController implements Listener, CommandExecutor {
                     publication = store.network().ready(binding.request().id(), prepared).toCompletableFuture();
                 }
             }
-            if (binding == null && allocation == null && now >= nextAllocation) {
+            if (binding == null && allocation == null && allocationGate.getAsBoolean() && now >= nextAllocation) {
                 allocation = store.network().allocate(prepared, arena, difficulty).toCompletableFuture();
                 nextAllocation = now + 2_000_000_000L;
             }
