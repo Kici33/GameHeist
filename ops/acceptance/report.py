@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 
 SUITES = {
     "heist-mongo": ["MongoStoreIntegrationTest", "MongoFailureIntegrationTest",
-                    "MongoRewardsIntegrationTest", "MongoReservationsIntegrationTest"],
+                    "MongoRewardsIntegrationTest", "MongoReservationsIntegrationTest", "MongoNetworkIntegrationTest"],
     "heist-runtime": ["InfluxIntegrationTest", "ProfileSessionsTest", "InstanceManagerTest", "MetricsTest"],
 }
 

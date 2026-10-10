@@ -31,7 +31,7 @@ docker stop gameheist-storage-test
 Remove-Item Env:HEIST_MONGO_TESTS
 ```
 
-The fixture verifies concurrent creation, competing profile writes, identical retries, persistence across clients, conflicting results, unknown schemas, and rejection after shutdown. Without the environment switch, seven integration tests are skipped; pure serialization and profile-session tests still run. CI starts the same isolated MongoDB service and enables the switch.
+The fixture verifies concurrent creation, competing profile writes, identical retries, persistence across clients, conflicting results, unknown schemas, and rejection after shutdown. Failure acceptance additionally severs real wire connections, injects lost acknowledgements after durable writes and saturates the bounded queue. CI enables all MongoDB, reward/network replica-set and Influx suites; it rejects missing or skipped acceptance reports. Live acceptance passed on 2026-10-10; see [reviewed reports and recovery limits](integration-acceptance.md).
 
 ## Client acceptance checks
 

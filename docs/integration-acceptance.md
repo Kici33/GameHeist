@@ -4,6 +4,8 @@ The build workflow runs the opt-in suites against disposable MongoDB 8.0.12 (sta
 
 `ops/acceptance/report.py` fails the acceptance step if any expected suite is absent, empty, skipped or unsuccessful. The `test-reports` workflow artifact contains the Gradle log, JUnit XML, HTML reports, acceptance summary and service logs. The job summary shows individual suite counts. A normal local build with the environment switches disabled does not establish service acceptance.
 
+Acceptance completed on 2026-10-10: [CI run 38057704124](https://github.com/Kici33/GameHeist/actions/runs/38057704124) passed all 264 tests, with zero failures, errors or skips. The reviewed `test-reports` artifact includes 38 live integration tests (9 storage, 4 failure/recovery, 9 rewards, 8 reservations, 6 network, 2 Influx). MongoDB service logs contain no error/fatal entries; InfluxDB logs show successful startup and storage indexing. Warnings include disposable-fixture startup and replica-set election messages.
+
 Coverage:
 
 | Area | Evidence |

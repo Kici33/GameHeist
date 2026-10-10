@@ -44,7 +44,7 @@ class InfluxIntegrationTest {
             proxy.start();
             try (var exporter = new InfluxMetricsExporter(URI.create("http://127.0.0.1:" + proxy.getAddress().getPort()),
                     "gameheist", "heist_metrics", token, ignored -> warnings.incrementAndGet())) {
-                long time = System.currentTimeMillis();
+                long time = System.currentTimeMillis() - 1000; // All sequence timestamps precede the query's stop time.
                 exporter.publish(sample(time, serverId, 1));
                 await(() -> exporter.failed() == 1);
                 exporter.publish(sample(time + 1, serverId, 2));

@@ -9,8 +9,7 @@ The practice prototype is implemented but not accepted through real-client testi
 - Complete the two-player graybox:4 checklist: all controls, guard navigation/cover, ammo/reload, self/crew healing, down/revive/interruption, loot return/deposit, votes/extraction, time limits, result feedback, isolation and inventory/world cleanup.
 - Run the `brasslock_bank:1` native-client route checklist with two and four players: staff/roof traversal, camera sight lines, all patrols and cover, power hold, scaled loot, escape vote and outside-yard warnings. Automated route acceptance passes; it does not establish native navigation or readability.
 - Test the unmodified 26.1.2 client with Brasslock 1.2: hand/inventory transforms, prop placement, HUD readability at multiple scales, spatial audio, subtitles, mute behavior, pack failure/reload/cache/timeout paths.
-- Run MongoDB and Influx integration suites with their isolated services and review CI outcomes. Normal local builds skip opt-in service tests; no new live database acceptance is claimed.
-- Test profile persistence, concurrent updates, reconnect during requests, unavailable database, finalization retries and restart recovery as documented.
+- Automated MongoDB/Influx acceptance completed on 2026-10-10: 38 live integration tests passed, covering persistence, revision races, reconnect during pending writes, unavailable database, lost acknowledgements, finalization retries and client restart recovery. Reports and service logs were reviewed; see [acceptance evidence and hard-crash limits](integration-acceptance.md).
 
 ## Gameplay still missing from the GDD release
 
