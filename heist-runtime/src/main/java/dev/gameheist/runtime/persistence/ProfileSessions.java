@@ -29,14 +29,19 @@ public final class ProfileSessions {
         sessions.put(player, entry);
         try {
             var write = writes.get(player);
+            entry.waitingForWrite = write != null;
             entry.pending = write == null ? repository.loadOrCreate(player).toCompletableFuture()
-                    : write.handle((saved, failure) -> null).thenCompose(ignored -> repository.loadOrCreate(player));
+                    : write.handle((saved, failure) -> null);
             operations.add(entry.pending);
         }
         catch (RuntimeException failure) { entry.failed = true; }
     }
 
-    public void close(UUID player) { checkThread(); sessions.remove(player); repository.closed(player); }
+    public void close(UUID player) {
+        checkThread();
+        sessions.remove(player);
+        repository.closed(player);
+    }
     public void freeze(UUID player) { require(player); sessions.get(player).frozen = true; }
     public void unfreeze(UUID player) { checkThread(); var entry = sessions.get(player); if (entry != null) entry.frozen = false; }
 
@@ -50,6 +55,15 @@ public final class ProfileSessions {
         });
         sessions.forEach((id, entry) -> {
             if (entry.pending == null || !entry.pending.isDone()) return;
+            if (entry.waitingForWrite) {
+                // Start claims only on the owner tick. Superseded/disconnected sessions never reach here.
+                entry.waitingForWrite = false;
+                try {
+                    entry.pending = repository.loadOrCreate(id).toCompletableFuture();
+                    operations.add(entry.pending);
+                } catch (RuntimeException failure) { entry.pending = null; entry.failed = true; }
+                return;
+            }
             try {
                 var loaded = entry.pending.join();
                 if (!loaded.playerId().equals(id)) throw new IllegalStateException("Profile identity mismatch");
@@ -144,6 +158,7 @@ public final class ProfileSessions {
         if (Thread.currentThread() != owner) throw new IllegalStateException("Profile access must use the owner thread");
     }
     private static final class Entry {
+        private boolean waitingForWrite;
         private PlayerProfile profile;
         private CompletableFuture<PlayerProfile> pending;
         private boolean failed;

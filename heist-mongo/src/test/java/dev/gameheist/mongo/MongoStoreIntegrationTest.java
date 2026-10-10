@@ -32,6 +32,10 @@ class MongoStoreIntegrationTest {
         }
         assertEquals(65000, await(store.statistics(player, scope)).bestWinMillis().orElseThrow());
         assertEquals(await(memory.statistics(player, scope)), await(store.statistics(player, scope)));
+        try (var reopened = new MongoStore(URI, database)) {
+            assertEquals(await(memory.statistics(player, scope)), await(reopened.statistics(player, scope)));
+            assertEquals(65000, await(reopened.statistics(player, scope)).bestWinMillis().orElseThrow());
+        }
     }
     @Test void combatTotalsMatchMemoryIncludingMissingPersonalAndLegacyStats() throws Exception {
         UUID player = UUID.randomUUID(), other = UUID.randomUUID();

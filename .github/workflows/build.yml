@@ -58,7 +58,23 @@ jobs:
           done
           exit 1
       - name: Build and run regression tests
-        run: bash ./gradlew clean build --no-daemon
+        run: |
+          mkdir -p build/acceptance
+          set -o pipefail
+          bash ./gradlew clean build --no-daemon 2>&1 | tee acceptance-gradle.log
+      - name: Verify database and telemetry acceptance reports
+        if: always()
+        run: python3 ops/acceptance/report.py
+      - name: Collect disposable database logs
+        if: always()
+        env:
+          MONGO_CONTAINER: ${{ job.services.mongodb.id }}
+          INFLUX_CONTAINER: ${{ job.services.influxdb.id }}
+        run: |
+          mkdir -p build/acceptance
+          docker logs "$MONGO_CONTAINER" > build/acceptance/mongodb.log 2>&1
+          docker logs "$INFLUX_CONTAINER" > build/acceptance/influxdb.log 2>&1
+          docker logs heist-reward-tests > build/acceptance/reward-replica.log 2>&1
       - name: Test local readiness checker
         run: python3 -m unittest discover -s ops/server -p 'test_*.py'
       - name: Render and verify Agones release template
@@ -78,7 +94,11 @@ jobs:
         if: always()
         with:
           name: test-reports
-          path: '**/build/reports/tests/'
+          path: |
+            **/build/reports/tests/
+            **/build/test-results/test/*.xml
+            build/acceptance/
+            acceptance-gradle.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:

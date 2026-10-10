@@ -73,6 +73,10 @@ class MongoRewardsIntegrationTest {
         var stats = await(store.statistics(f.player, scope));
         assertEquals(30000, stats.gameplayMillis()); assertEquals(1, stats.timedRuns());
         assertEquals(new ObjectiveStats(3, 2), stats.objectiveStats());
+        try (var restarted = new MongoStore(URI, database)) {
+            assertEquals(stats, await(restarted.statistics(f.player, scope)));
+            assertEquals(await(store.leaderboards().leaderboard(scope)), await(restarted.leaderboards().leaderboard(scope)));
+        }
         assertTrue(await(store.leaderboards().leaderboard(new StatisticsScope(scope.arena(), Difficulty.HARD, 1, false))).isEmpty());
         assertTrue(await(store.leaderboards().leaderboard(new StatisticsScope(scope.arena(), scope.difficulty(), 2, false))).isEmpty());
         store.leaderboards().clearCache();

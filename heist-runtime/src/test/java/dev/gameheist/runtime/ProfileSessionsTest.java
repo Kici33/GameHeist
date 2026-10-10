@@ -8,6 +8,19 @@ import java.util.concurrent.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ProfileSessionsTest {
+    @Test void supersededReconnectDoesNotStartAnotherProfileClaimAfterPendingWrite() {
+        ready(); sessions.edit(player, this::scout);
+        sessions.close(player); sessions.open(player);
+        sessions.close(player); sessions.open(player);
+        CompletableFuture.runAsync(() -> repository.write.complete(null)).join();
+        assertEquals(1, repository.loads.size(), "Storage completion must not claim profiles on a worker");
+        sessions.tick();
+        assertEquals(2, repository.loads.size(), "Only the current reconnect may claim the profile");
+        repository.loads.getLast().complete(scout(PlayerProfile.starter(player)));
+        sessions.tick();
+        assertEquals(1, sessions.require(player).revision());
+        assertEquals(0, sessions.pendingOperations());
+    }
     @Test void staleMenuRevisionCannotOverwriteNewerSavedPreferences() {
         ready();
         sessions.edit(player, 0, this::scout);
@@ -74,6 +87,7 @@ class ProfileSessionsTest {
         sessions.open(player);
         assertEquals(1, repository.loads.size());
         repository.write.complete(null);
+        sessions.tick();
         assertEquals(2, repository.loads.size());
         repository.loads.get(1).complete(scout(PlayerProfile.starter(player)));
         sessions.tick();
